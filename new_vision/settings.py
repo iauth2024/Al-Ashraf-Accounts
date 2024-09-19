@@ -65,14 +65,13 @@ WSGI_APPLICATION = 'new_vision.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'newvision_db',
-        'USER': 'newvision_db_user',
-        'PASSWORD': 'LLSVRdqZJRDoBbOiozg3JkYEhpkdEQHI',
-        'HOST': 'dpg-cqsrbgij1k6c73fn0iig-a.oregon-postgres.render.com',
+        'NAME': 'al_ashraf_accounts',
+        'USER': 'al_ashraf_accounts_user',
+        'PASSWORD': 'xH3Hsbz8axCpVMcFuUEGOK5xhD09dkH2',
+        'HOST': 'dpg-crlrj9bv2p9s73e3b2ng-a.oregon-postgres.render.com',
         'PORT': '5432',
     }
 }
-
 
 
 # Password validation
