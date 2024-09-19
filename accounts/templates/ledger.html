@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Ledger{% endblock %}
+
+{% block content %}
+    <h2>Ledger</h2>
+
+    <!-- Date range form -->
+    <form method="get" action="" class="form-inline mb-3">
+        {% csrf_token %}
+        <div class="form-group mr-2">
+            {{ form.date_range.label_tag }}
+            {{ form.date_range }}
+        </div>
+        <div class="form-group mr-2" id="custom-dates" {% if form.date_range.value == 'custom' %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+            {{ form.start_date.label_tag }}
+            {{ form.start_date }}
+        </div>
+        <div class="form-group mr-2" id="custom-dates" {% if form.date_range.value == 'custom' %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+            {{ form.end_date.label_tag }}
+            {{ form.end_date }}
+        </div>
+        <button type="submit" class="btn btn-primary">Apply</button>
+    </form>
+
+    <!-- Transaction list -->
+    <table class="table table-striped table-hover mt-3">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Head of Account</th>
+                <th>Credited (Receipt)</th>
+                <th>Debited (Voucher)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in page_obj %}
+                <tr>
+                    {% if transaction.receipt_date %}
+                        <td>{{ transaction.receipt_date }}</td>
+                        <td>{{ transaction.manual_receipt_no }} - {{ transaction.name }}</td>
+                        <td>{{ transaction.type_of_receipt }}</td>
+                        <td>{{ transaction.head_of_account }}</td>
+                        <td>{{ transaction.amount|floatformat:2 }}</td>
+                        <td></td>
+                    {% elif transaction.voucher_date %}
+                        <td>{{ transaction.voucher_date }}</td>
+                        <td>{{ transaction.voucher_no }} - {{ transaction.paid_to }}</td>
+                        <td>Voucher</td>
+                        <td>{{ transaction.head_of_account }}</td>
+                        <td></td>
+                        <td>{{ transaction.amount|floatformat:2 }}</td>
+                    {% endif %}
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">No transactions found for the selected date range.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Pagination controls -->
+    <div class="pagination mt-3">
+        <span class="step-links">
+            {% if page_obj.has_previous %}
+                <a href="?{% if request.GET.date_range %}date_range={{ request.GET.date_range }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+                <a href="?{% if request.GET.date_range %}date_range={{ request.GET.date_range }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </span>
+    </div>
+
+    <!-- Script to toggle custom date fields based on the selected range -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const dateRangeSelect = document.querySelector('[name="date_range"]');
+            const customDatesDiv = document.querySelectorAll('#custom-dates');
+
+            function toggleCustomDates() {
+                if (dateRangeSelect.value === 'custom') {
+                    customDatesDiv.forEach(div => div.style.display = 'block');
+                } else {
+                    customDatesDiv.forEach(div => div.style.display = 'none');
+                }
+            }
+
+            // Initial toggle based on the current value
+            toggleCustomDates();
+
+            // Add event listener for changes
+            dateRangeSelect.addEventListener('change', toggleCustomDates);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h2>Create Contra Transaction</h2>
+    <form method="post" action="{% url 'create_contra' %}">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="amount">Amount:</label>
+            <input type="number" step="0.01" class="form-control" id="amount" name="amount" required>
+        </div>
+        <div class="form-group">
+            <label for="contra_type">Type:</label>
+            <select class="form-control" id="contra_type" name="contra_type" required>
+                <option value="deposit">Deposit</option>
+                <option value="withdraw">Withdraw</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="performed_by">Performed By:</label>
+            <input type="text" class="form-control" id="performed_by" name="performed_by" value="{{ user.username }}" readonly>
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
+        {% if error %}
+        <div class="alert alert-danger mt-3">{{ error }}</div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

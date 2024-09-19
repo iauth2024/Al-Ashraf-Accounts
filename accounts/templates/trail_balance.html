@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Trial Balance{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">Trail Balance</h1>
+    <div class="mb-4">
+        <p><strong>Date Range:</strong> {{ start_date }} to {{ end_date }}</p>
+        <p><strong>Total Receipts:</strong> {{ total_receipts }}</p>
+        <p><strong>Total Vouchers:</strong> {{ total_vouchers }}</p>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h4 mb-0">Receipts</h2>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Type of Receipt</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in receipt_groups %}
+                        <tr>
+                            <td>{{ group.type_of_receipt }}</td>
+                            <td class="text-right">{{ group.total_amount|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2 class="h4 mb-0">Vouchers</h2>
+        </div>
+        <div class="card-body">
+            <table class="table table-striped table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Head of Account</th>
+                        <th>Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in voucher_groups %}
+                        <tr>
+                            <td>{{ group.head_of_account }}</td>
+                            <td class="text-right">{{ group.total_amount|floatformat:2 }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

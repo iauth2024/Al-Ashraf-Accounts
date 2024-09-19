@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Vouchers for {{ head_of_account }}</h2>
+
+<!-- Date Range Filter Form -->
+<form method="get">
+    {{ date_form.as_p }}
+    <button type="submit">Filter</button>
+</form>
+
+<!-- Voucher Details -->
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Voucher Number</th>
+            <th>Amount</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for voucher in vouchers %}
+        <tr>
+            <td>{{ voucher.voucher_no}}</td>
+            <td>{{ voucher.amount }}</td>
+            <td>{{ voucher.voucher_date }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No vouchers found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

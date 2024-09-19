@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}My App{% endblock %}</title>
+    <style>
+        body {
+            display: flex;
+            font-family: Arial, sans-serif;
+        }
+        .sidebar {
+            width: 15%;
+            background: #f4f4f4;
+            padding: 15px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        .main-content {
+            width: 85%;
+            padding: 15px;
+        }
+        .sidebar a {
+            display: block;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .sidebar a:hover {
+            background: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .edit-links {
+            margin-top: 20px;
+        }
+        .edit-links a {
+            display: block;
+            padding: 10px;
+            margin-bottom: 5px;
+            background: #28a745; /* Green for edit links */
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .edit-links a:hover {
+            background: #218838; /* Darker green on hover */
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Menu</h2>
+        <a href="{% url 'create_receipt' %}">Create Receipt</a>
+        <a href="{% url 'list_receipts' %}">List Receipts</a>
+        <a href="{% url 'create_voucher' %}">Create Voucher</a>
+        <a href="{% url 'list_vouchers' %}">View Vouchers</a>
+        {% if user.is_authenticated %}
+            {% if perms.accounts.can_approve_vouchers %}
+                <a href="{% url 'approver_page' %}">Approver Page</a>
+            {% endif %}
+        {% endif %}
+    </div>
+    <div class="main-content">
+        {% block content %}
+        <h2>Edit Vouchers</h2>
+        <div class="edit-links">
+            <ul>
+                {% for voucher in vouchers %}
+                    <li><a href="{% url 'edit_voucher' voucher.id %}">Edit {{ voucher.voucher_no }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endblock %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Dashboard</h1>
+
+    <form method="get" class="mb-4">
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label for="date_range">Date Range</label>
+                <select id="date_range" name="date_range" class="form-control">
+                    {% for value, label in form.date_range.field.choices %}
+                    <option value="{{ value }}" {% if form.date_range.value == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="start_date">Start Date</label>
+                {{ form.start_date }}
+            </div>
+            <div class="col-md-4 mb-3">
+                <label for="end_date">End Date</label>
+                {{ form.end_date }}
+            </div>
+            <div class="col-md-12 mb-3">
+                <button type="submit" class="btn btn-primary btn-block">Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="row mb-4">
+        <div class="col-md-3 text-center">
+            <div class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Screen Time</h5>
+                    <p class="card-text">{{ screen_time }} hours</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Work Time</h5>
+                    <p class="card-text">{{ work_time }} hours</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Logins</h5>
+                    <p class="card-text">{{ logins }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Receipts Created</h5>
+                    <p class="card-text">{{ total_receipts }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 text-center">
+            <div class="card bg-light mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Vouchers Created</h5>
+                    <p class="card-text">{{ total_vouchers }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>Datewise Summary</h3>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Screen Time (hours)</th>
+                <th>Work Time (hours)</th>
+                <th>Logins</th>
+                <th>Receipts Created</th>
+                <th>Vouchers Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for date, data in combined_data.items %}
+            <tr>
+                <td>{{ date }}</td>
+                <td>{{ data.screen_time }}</td>
+                <td>{{ data.work_time }}</td>
+                <td>{{ data.logins }}</td>
+                <td>{{ data.receipts }}</td>
+                <td>{{ data.vouchers }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Receipt{% endblock %}
+
+{% block content %}
+<div class="container mt-4" style="max-width: 700px;">
+    <h1>Create Receipt</h1>
+
+    <!-- Display general form errors -->
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <form method="post" action="">
+        {% csrf_token %}
+        
+        <!-- Mode of Payment -->
+        <div class="form-group">
+            <label for="id_mode_of_payment">Mode of Payment:</label>
+            {{ form.mode_of_payment }}
+            {% if form.mode_of_payment.errors %}
+                <div class="text-danger">
+                    {% for error in form.mode_of_payment.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Manual Book No -->
+        <div class="form-group" id="manual_book_no_group">
+            <label for="id_manual_book_no">Manual Book No:</label>
+            {{ form.manual_book_no }}
+            {% if form.manual_book_no.errors %}
+                <div class="text-danger">
+                    {% for error in form.manual_book_no.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Manual Receipt No -->
+        <div class="form-group" id="manual_receipt_no_group">
+            <label for="id_manual_receipt_no">Manual Receipt No:</label>
+            {{ form.manual_receipt_no }}
+            {% if form.manual_receipt_no.errors %}
+                <div class="text-danger">
+                    {% for error in form.manual_receipt_no.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Name -->
+        <div class="form-group">
+            <label for="id_name">Name:</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div class="text-danger">
+                    {% for error in form.name.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Phone -->
+        <div class="form-group">
+            <label for="id_phone">Phone:</label>
+            {{ form.phone }}
+            {% if form.phone.errors %}
+                <div class="text-danger">
+                    {% for error in form.phone.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Address -->
+        <div class="form-group">
+            <label for="id_address">Address:</label>
+            {{ form.address }}
+            {% if form.address.errors %}
+                <div class="text-danger">
+                    {% for error in form.address.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Type of Receipt -->
+        <div class="form-group">
+            <label for="id_type_of_receipt">Type of Receipt:</label>
+            {{ form.type_of_receipt }}
+            {% if form.type_of_receipt.errors %}
+                <div class="text-danger">
+                    {% for error in form.type_of_receipt.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Amount -->
+        <div class="form-group">
+            <label for="id_amount">Amount:</label>
+            {{ form.amount }}
+            {% if form.amount.errors %}
+                <div class="text-danger">
+                    {% for error in form.amount.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Receipt Date -->
+        <div class="form-group">
+            <label for="id_receipt_date">Receipt Date:</label>
+            {{ form.receipt_date }}
+            {% if form.receipt_date.errors %}
+                <div class="text-danger">
+                    {% for error in form.receipt_date.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Transaction ID -->
+        <div class="form-group" id="transaction_id_group">
+            <label for="id_transaction_id">Transaction ID:</label>
+            {{ form.transaction_id }}
+            {% if form.transaction_id.errors %}
+                <div class="text-danger">
+                    {% for error in form.transaction_id.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Cheque Number -->
+        <div class="form-group" id="cheque_number_group">
+            <label for="id_cheque_number">Cheque Number:</label>
+            {{ form.cheque_number }}
+            {% if form.cheque_number.errors %}
+                <div class="text-danger">
+                    {% for error in form.cheque_number.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    function updateFields() {
+        var mode = $('#id_mode_of_payment').val();
+        if (mode == 'Cash') {
+            $('#manual_book_no_group').show();
+            $('#manual_receipt_no_group').show();
+            $('#transaction_id_group').hide();
+            $('#cheque_number_group').hide();
+            $('#id_manual_receipt_no').prop('disabled', false);
+        } else if (mode == 'UPI' || mode == 'Bank Transfer') {
+            $('#manual_book_no_group').hide();
+            $('#manual_receipt_no_group').show();
+            $('#transaction_id_group').show();
+            $('#cheque_number_group').hide();
+            $('#id_manual_receipt_no').prop('disabled', true);
+        } else if (mode == 'Cheque') {
+            $('#manual_book_no_group').hide();
+            $('#manual_receipt_no_group').show();
+            $('#transaction_id_group').hide();
+            $('#cheque_number_group').show();
+            $('#id_manual_receipt_no').prop('disabled', true);
+        } else {
+            $('#manual_book_no_group').hide();
+            $('#manual_receipt_no_group').hide();
+            $('#transaction_id_group').hide();
+            $('#cheque_number_group').hide();
+        }
+    }
+
+    $('#id_mode_of_payment').change(updateFields);
+    updateFields(); // Call it initially to set the correct visibility
+});
+</script>
+{% endblock %}

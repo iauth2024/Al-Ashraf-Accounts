@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Voucher Upload Successful</h2>
+
+    {% if request.session.upload_report %}
+        <div class="alert alert-success">
+            <h4>Upload Summary:</h4>
+            <pre>{{ request.session.upload_report }}</pre>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>No upload report found.</p>
+        </div>
+    {% endif %}
+
+    <a href="{% url 'upload_vouchers_from_excel' %}" class="btn btn-primary">Upload More Vouchers</a>
+    <a href="{% url 'list_vouchers' %}" class="btn btn-secondary">View Vouchers List</a>
+</div>
+{% endblock %}

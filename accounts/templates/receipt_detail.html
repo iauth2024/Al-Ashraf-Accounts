@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Receipts for {{ type_of_receipt }}</h2>
+
+<!-- Date Range Filter Form -->
+<form method="get">
+    {{ date_form.as_p }}
+    <button type="submit">Filter</button>
+</form>
+
+<!-- Receipt Details -->
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Receipt Number</th>
+            <th>Amount</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for receipt in receipts %}
+        <tr>
+            <td>{{ receipt.manual_receipt_no }}</td>
+            <td>{{ receipt.amount }}</td>
+            <td>{{ receipt.receipt_date }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No receipts found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

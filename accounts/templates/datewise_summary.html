@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}Date-Wise Summary{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4 text-center">Date-Wise Summary</h1>
+
+    <h2 class="mb-4">Receipts and Vouchers Count by Date</h2>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Receipts</th>
+                <th>Vouchers</th>
+                <th>Approved Vouchers</th>
+                <th>Waiting Vouchers</th>
+                <th>Rejected Vouchers</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for date in receipts_data.keys %}
+                <tr>
+                    <td>{{ date }}</td>
+                    <td>{{ receipts_data.date|default:"0" }}</td>
+                    <td>{{ vouchers_data.date|default:"0" }}</td>
+                    <td>{{ status_data.date.approved|default:"0" }}</td>
+                    <td>{{ status_data.date.waiting|default:"0" }}</td>
+                    <td>{{ status_data.date.rejected|default:"0" }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6">No data available</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

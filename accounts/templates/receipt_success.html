@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt Success</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+        .receipt-container {
+            background-color: #fff;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border: 2px solid #4CAF50;
+        }
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .receipt-header h1 {
+            color: #333;
+            font-size: 24px;
+            margin: 0;
+        }
+        .receipt-details {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .receipt-details li {
+            margin-bottom: 10px;
+        }
+        .receipt-details li strong {
+            display: inline-block;
+            width: 150px;
+            font-weight: bold;
+        }
+        .receipt-amount {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        .receipt-date {
+            text-align: right;
+            margin-top: 20px;
+            color: #555;
+        }
+        .create-another-link {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .create-another-link a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .create-another-link a:hover {
+            text-decoration: underline;
+        }
+        .icon-links {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .icon-links a {
+            margin: 0 10px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-size: 24px;
+        }
+        .icon {
+            width: 24px;
+            height: 24px;
+            fill: #4CAF50;
+            vertical-align: middle;
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            .receipt-container, .receipt-container * {
+                visibility: visible;
+            }
+            .receipt-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border: none;
+                box-shadow: none;
+            }
+            .create-another-link, .icon-links {
+                display: none;
+            }
+        }
+    </style>
+    <script>
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                window.location.href = "{% url 'create_receipt' %}";
+            } else if (event.code === 'Escape') {
+                window.location.href = "/";
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="receipt-container">
+        <div class="receipt-header">
+            <h1>Receipt Created Successfully!</h1>
+        </div>
+        <div class="receipt-date">
+            <p><strong>Receipt Date:</strong> {{ receipt.receipt_date }}</p>
+        </div>
+        <div class="receipt-details">
+            <ul>
+                <li><strong>Receipt Date:</strong> {{ receipt.receipt_date }}</li>
+                <li><strong>Name:</strong> {{ receipt.name }}</li>
+                <li><strong>Phone:</strong> {{ receipt.phone }}</li>
+                <li><strong>Address:</strong> {{ receipt.address }}</li>
+                <li><strong>Type of Receipt:</strong> {{ receipt.type_of_receipt }}</li>
+                <li><strong>Mode of Payment:</strong> {{ receipt.get_mode_of_payment_display }}</li>
+        
+                {% if receipt.mode_of_payment == 'Cash' %}
+                    <li><strong>Manual Book No:</strong> {{ receipt.manual_book_no }}</li>
+                    <li><strong>Manual Receipt No:</strong> {{ receipt.manual_receipt_no }}</li>
+                {% elif receipt.mode_of_payment == 'UPI' or receipt.mode_of_payment == 'Bank Transfer' %}
+                    <li><strong>Manual Receipt No:</strong> {{ receipt.manual_receipt_no }}</li>
+                    <li><strong>Transaction ID:</strong> {{ receipt.transaction_id }}</li>
+                {% elif receipt.mode_of_payment == 'Cheque' %}
+                    <li><strong>Manual Receipt No:</strong> {{ receipt.manual_receipt_no }}</li>
+                    <li><strong>Cheque Number:</strong> {{ receipt.cheque_number }}</li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <div class="receipt-amount">
+            <p><strong>Amount:</strong> {{ receipt.amount }}</p>
+        </div>
+    </div>
+    <div class="create-another-link">
+        <a href="{% url 'create_receipt' %}">Create another receipt</a>
+    </div>
+    <div class="icon-links">
+        <a href="javascript:window.print();" title="Print">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 8H5c-1.1 0-2 .9-2 2v7h4v4h10v-4h4v-7c0-1.1-.9-2-2-2zM16 19H8v-5h8v5zm2-13H6V3h12v3z"/></svg>
+        </a>
+        <a href="/" title="Home">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+        </a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Upload Receipts from Excel</h2>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Upload</button>
+  </form>
+  <div id="progress-bar" style="width: 100%; background-color: #f3f3f3;">
+    <div id="progress" style="width: 0%; height: 30px; background-color: #4caf50;"></div>
+  </div>
+  <div id="progress-text"></div>
+  <script>
+    function updateProgress(progress) {
+      document.getElementById('progress').style.width = progress + '%';
+      document.getElementById('progress-text').innerText = progress.toFixed(2) + '% uploaded';
+    }
+
+    // Fetch progress from session periodically
+    setInterval(function() {
+      fetch("{% url 'upload_progress' %}").then(response => response.json()).then(data => {
+        updateProgress(data.progress);
+      });
+    }, 1000);
+  </script>
+{% endblock %}

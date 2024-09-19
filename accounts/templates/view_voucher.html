@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}View Voucher{% endblock %}
+
+{% block content %}
+    <h2>Voucher Details</h2>
+    <p><strong>Voucher No:</strong> {{ voucher.voucher_no }}</p>
+    <p><strong>Paid To:</strong> {{ voucher.paid_to }}</p>
+    <p><strong>Payment Purpose:</strong> {{ voucher.payment_purpose }}</p>
+    <p><strong>Head of Account:</strong> {{ voucher.head_of_account.name }}</p>
+    <p><strong>Mode of Payment:</strong> {{ voucher.get_mode_of_payment_display }}</p>
+    <p><strong>Transaction ID:</strong> {{ voucher.transaction_id }}</p>
+    <p><strong>Amount:</strong> {{ voucher.amount }}</p>
+    <p><strong>Amount in Words:</strong> {{ voucher.amount_in_words }}</p>
+    <p><strong>Voucher Date:</strong> {{ voucher.voucher_date }}</p>
+    <p><strong>Created Date:</strong> {{ voucher.created_date }}</p>
+    <p><strong>Created By:</strong> {{ voucher.created_by.username }}</p>
+    <p><strong>Purchased By:</strong> {{ voucher.purchased_by }}</p>
+    <p><strong style="background-color:rgb(255, 102, 0)">Status:</strong> 
+        <span style="color:rgb(26, 52, 146);font-weight: bold;" class="{% if voucher.status == 'waiting' %}status-waiting{% elif voucher.status == 'approved' %}status-approved{% elif voucher.status == 'rejected' %}status-rejected{% endif %}">
+            {{ voucher.get_status_display }}
+        </span>
+    </p>
+    <p><strong>Rejection Reason:</strong> {{ voucher.rejection_reason }}</p>
+    <p><strong>Edited:</strong> {{ voucher.edited|yesno:"Yes,No" }}</p>
+    <p><strong>Approved By:</strong> {{ voucher.approved_by.username }}</p>
+    
+    {% if user.is_staff %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_status">Status:</label>
+                <select name="status" id="id_status" class="form-control">
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="reject-reason" style="display: none;">
+                <label for="id_rejection_reason">Rejection Reason:</label>
+                <textarea class="form-control" id="id_rejection_reason" name="rejection_reason"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-success" name="action" value="approve">Approve</button>
+            <button type="submit" class="btn btn-danger" name="action" value="reject">Reject</button>
+            <a href="{% url 'view_voucher' voucher.id %}" class="btn btn-secondary">Cancel</a>
+        </form>
+    {% endif %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var statusSelect = document.getElementById('id_status');
+            var rejectReasonDiv = document.getElementById('reject-reason');
+
+            statusSelect.addEventListener('change', function() {
+                if (statusSelect.value === 'rejected') {
+                    rejectReasonDiv.style.display = 'block';
+                } else {
+                    rejectReasonDiv.style.display = 'none';
+                }
+            });
+
+            // Initial check in case the form is pre-filled with 'rejected'
+            if (statusSelect.value === 'rejected') {
+                rejectReasonDiv.style.display = 'block';
+            }
+        });
+    </script>
+{% endblock %}

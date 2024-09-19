@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block content %}
+<h2>Day Book</h2>
+
+<form method="post" class="form-inline mb-4">
+    {% csrf_token %}
+    <div class="form-group mr-2">
+        {{ form.start_date.label_tag }} {{ form.start_date }}
+    </div>
+    <div class="form-group mr-2">
+        {{ form.end_date.label_tag }} {{ form.end_date }}
+    </div>
+    <div class="form-group mr-2">
+        {{ form.date_range.label_tag }} {{ form.date_range }}
+    </div>
+    <div class="form-group mr-2">
+        {{ form.include_contra }}
+        {{ form.include_contra.label_tag }}
+    </div>
+    <button type="submit" class="btn btn-primary">Apply</button>
+</form>
+
+<div class="day-book-section">
+    <h3>Cash</h3>
+    <div class="balance-box">
+        <div class="balance-item">
+            <span>Opening</span>
+            <span>{{ opening_balance_cash|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Receipts</span>
+            <span>{{ total_receipts_cash|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Payments</span>
+            <span>{{ total_payments_cash|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Closing</span>
+            <span>{{ closing_balance_cash|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="day-book-section">
+    <h3>Bank</h3>
+    <div class="balance-box">
+        <div class="balance-item">
+            <span>Opening</span>
+            <span>{{ opening_balance_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Receipts</span>
+            <span>{{ total_receipts_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Payments</span>
+            <span>{{ total_payments_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Closing</span>
+            <span>{{ closing_balance_bank|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="day-book-section">
+    <h3>Total</h3>
+    <div class="balance-box total-box">
+        <div class="balance-item">
+            <span>Opening</span>
+            <span>{{ opening_balance_cash|add:opening_balance_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Receipts</span>
+            <span>{{ total_receipts_cash|add:total_receipts_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Payments</span>
+            <span>{{ total_payments_cash|add:total_payments_bank|floatformat:2 }}</span>
+        </div>
+        <div class="balance-item">
+            <span>Closing</span>
+            <span>{{ closing_balance_cash|add:closing_balance_bank|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .day-book-section {
+        margin-top: 30px;
+    }
+    .balance-box {
+        display: flex;
+        justify-content: space-between;
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .balance-item {
+        flex: 1;
+        text-align: center;
+        margin: 0 10px;
+    }
+    .balance-item span {
+        display: block;
+        font-size: 1.2em;
+    }
+    .total-box {
+        background-color: #e9ecef;
+    }
+</style>
+
+{% endblock %}

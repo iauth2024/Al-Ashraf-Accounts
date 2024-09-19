@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Ledger Page</h2>
+
+<!-- Date Range Filter Form -->
+<form method="get">
+    {{ date_form.as_p }}
+    <button type="submit">Filter</button>
+</form>
+
+<!-- Receipt Summary -->
+<h3>Receipts</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Type of Receipt</th>
+            <th>Number of Receipts</th>
+            <th>Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for receipt in receipt_summary %}
+        <tr>
+            <td><a href="{% url 'receipt_detail' receipt.type_of_receipt %}">{{ receipt.type_of_receipt }}</a></td>
+            <td>{{ receipt.count }}</td>
+            <td>{{ receipt.total_amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No receipts found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Voucher Summary -->
+<h3>Vouchers</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Head of Account</th>
+            <th>Number of Vouchers</th>
+            <th>Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for voucher in voucher_summary %}
+        <tr>
+            <td><a href="{% url 'voucher_detail' voucher.head_of_account__name %}">{{ voucher.head_of_account__name }}</a></td>
+
+            <td>{{ voucher.count }}</td>
+            <td>{{ voucher.total_amount|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No vouchers found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
