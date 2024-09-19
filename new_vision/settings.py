@@ -136,7 +136,7 @@ SECRET_KEY = 'django-insecure-!gp@5#^pa--c4drg#sa8&mk)=*_#kr$9&d7m#hd*io$()7*)r-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['al-ashraf-accounts-1.onrender.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['al-ashraf-accounts.onrender.com', '127.0.0.1', 'localhost']
 
 
 # Application definition
