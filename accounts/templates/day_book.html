@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 {% load i18n %}
+{% load custom_filters %} 
 
 {% block content %}
 <h2>Day Book</h2>
@@ -28,19 +29,19 @@
     <div class="balance-box">
         <div class="balance-item">
             <span>Opening</span>
-            <span>{{ opening_balance_cash|floatformat:2 }}</span>
+            <span>{{ opening_balance_cash|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Receipts</span>
-            <span>{{ total_receipts_cash|floatformat:2 }}</span>
+            <span>{{ total_receipts_cash|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Payments</span>
-            <span>{{ total_payments_cash|floatformat:2 }}</span>
+            <span>{{ total_payments_cash|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Closing</span>
-            <span>{{ closing_balance_cash|floatformat:2 }}</span>
+            <span>{{ closing_balance_cash|indian_number_format }}</span>
         </div>
     </div>
 </div>
@@ -50,19 +51,19 @@
     <div class="balance-box">
         <div class="balance-item">
             <span>Opening</span>
-            <span>{{ opening_balance_bank|floatformat:2 }}</span>
+            <span>{{ opening_balance_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Receipts</span>
-            <span>{{ total_receipts_bank|floatformat:2 }}</span>
+            <span>{{ total_receipts_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Payments</span>
-            <span>{{ total_payments_bank|floatformat:2 }}</span>
+            <span>{{ total_payments_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Closing</span>
-            <span>{{ closing_balance_bank|floatformat:2 }}</span>
+            <span>{{ closing_balance_bank|indian_number_format }}</span>
         </div>
     </div>
 </div>
@@ -72,19 +73,19 @@
     <div class="balance-box total-box">
         <div class="balance-item">
             <span>Opening</span>
-            <span>{{ opening_balance_cash|add:opening_balance_bank|floatformat:2 }}</span>
+            <span>{{ opening_balance_cash|add:opening_balance_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Receipts</span>
-            <span>{{ total_receipts_cash|add:total_receipts_bank|floatformat:2 }}</span>
+            <span>{{ total_receipts_cash|add:total_receipts_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Payments</span>
-            <span>{{ total_payments_cash|add:total_payments_bank|floatformat:2 }}</span>
+            <span>{{ total_payments_cash|add:total_payments_bank|indian_number_format }}</span>
         </div>
         <div class="balance-item">
             <span>Closing</span>
-            <span>{{ closing_balance_cash|add:closing_balance_bank|floatformat:2 }}</span>
+            <span>{{ closing_balance_cash|add:closing_balance_bank|indian_number_format }}</span>
         </div>
     </div>
 </div>

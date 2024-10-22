@@ -119,18 +119,18 @@
                 </tr>
             {% empty %}
                 <tr>
-                    <td colspan="11" class="text-center">No vouchers found.</td>
+                    <td colspan="11">No vouchers found.</td>
                 </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <!-- Pagination -->
+    <!-- Pagination controls -->
     <div class="pagination">
         <span class="step-links">
             {% if page_obj.has_previous %}
-                <a href="?page=1{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">&laquo; first</a>
-                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">previous</a>
+                <a href="?page=1&entries_per_page={{ request.GET.entries_per_page }}&voucher_no={{ request.GET.voucher_no }}&paid_to={{ request.GET.paid_to }}&on_account_of={{ request.GET.on_account_of }}&head_of_account={{ request.GET.head_of_account }}&mode_of_payment={{ request.GET.mode_of_payment }}&transaction_id={{ request.GET.transaction_id }}&start_date={{ request.GET.start_date }}&end_date={{ request.GET.end_date }}&status={{ request.GET.status }}">&laquo; first</a>
+                <a href="?page={{ page_obj.previous_page_number }}&entries_per_page={{ request.GET.entries_per_page }}&voucher_no={{ request.GET.voucher_no }}&paid_to={{ request.GET.paid_to }}&on_account_of={{ request.GET.on_account_of }}&head_of_account={{ request.GET.head_of_account }}&mode_of_payment={{ request.GET.mode_of_payment }}&transaction_id={{ request.GET.transaction_id }}&start_date={{ request.GET.start_date }}&end_date={{ request.GET.end_date }}&status={{ request.GET.status }}">previous</a>
             {% endif %}
 
             <span class="current">
@@ -138,8 +138,8 @@
             </span>
 
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">next</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}">last &raquo;</a>
+                <a href="?page={{ page_obj.next_page_number }}&entries_per_page={{ request.GET.entries_per_page }}&voucher_no={{ request.GET.voucher_no }}&paid_to={{ request.GET.paid_to }}&on_account_of={{ request.GET.on_account_of }}&head_of_account={{ request.GET.head_of_account }}&mode_of_payment={{ request.GET.mode_of_payment }}&transaction_id={{ request.GET.transaction_id }}&start_date={{ request.GET.start_date }}&end_date={{ request.GET.end_date }}&status={{ request.GET.status }}">next</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}&entries_per_page={{ request.GET.entries_per_page }}&voucher_no={{ request.GET.voucher_no }}&paid_to={{ request.GET.paid_to }}&on_account_of={{ request.GET.on_account_of }}&head_of_account={{ request.GET.head_of_account }}&mode_of_payment={{ request.GET.mode_of_payment }}&transaction_id={{ request.GET.transaction_id }}&start_date={{ request.GET.start_date }}&end_date={{ request.GET.end_date }}&status={{ request.GET.status }}">last &raquo;</a>
             {% endif %}
         </span>
     </div>
