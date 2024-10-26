@@ -36,8 +36,8 @@ class Receipt(models.Model):
     address = models.CharField(max_length=300, blank=True, null=True)
     type_of_receipt = models.CharField(max_length=50, choices=TYPE_CHOICES, default='Donation')
     mode_of_payment = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='Cash')
-    transaction_id = models.CharField(max_length=15, blank=True, null=True)
-    cheque_number = models.CharField(max_length=15, blank=True, null=True)
+    transaction_id = models.CharField(max_length=25, blank=True, null=True)
+    cheque_number = models.CharField(max_length=25, blank=True, null=True)
     amount = models.PositiveIntegerField(validators=[positive_integer_validator])
     receipt_date = models.DateField(default=date.today)
 

@@ -214,101 +214,9 @@ from django.contrib import messages
 from .forms import ReceiptForm
 from .models import Receipt
 
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from .forms import ReceiptForm
-from .models import Receipt
-
-def day_book(request):
-    form = DateRangeForm(request.POST or None)
-    opening_balance_cash = 0
-    closing_balance_cash = 0
-    opening_balance_bank = 0
-    closing_balance_bank = 0
-    total_receipts_cash = 0
-    total_receipts_bank = 0
-    total_payments_cash = 0
-    total_payments_bank = 0
-    include_contra = False  # Default to not include contra
-
-    if form.is_valid():
-        start_date, end_date = get_date_range(form.cleaned_data['date_range'])
-        if form.cleaned_data['date_range'] == 'custom':
-            start_date = form.cleaned_data['start_date']
-            end_date = form.cleaned_data['end_date']
-        include_contra = form.cleaned_data.get('include_contra', False)  # Default to False if not set
-
-        # Cash Transactions
-        opening_balance_cash = fetch_opening_balance_cash(start_date, include_contra)
-        total_receipts_cash = fetch_total_receipts_cash(start_date, end_date)
-        total_payments_cash = fetch_total_payments_cash(start_date, end_date)
-        closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
-
-        # Bank Transactions
-        opening_balance_bank = fetch_opening_balance_bank(start_date, include_contra)
-        total_receipts_bank = fetch_total_receipts_bank(start_date, end_date)
-        total_payments_bank = fetch_total_payments_bank(start_date, end_date)
-        closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
-
-        # Include Contra Entries if checked
-        if include_contra:
-            contra_entries = Contra.objects.filter(date__range=[start_date, end_date])
-            for contra in contra_entries:
-                if contra.contra_type == 'withdraw':
-                    # Voucher for bank, Receipt for cash
-                    total_receipts_cash += contra.amount  # Add to cash receipts
-                    total_payments_bank += contra.amount  # Add to bank payments
-                elif contra.contra_type == 'deposit':
-                    # Voucher for cash, Receipt for bank
-                    total_payments_cash += contra.amount  # Add to cash payments
-                    total_receipts_bank += contra.amount  # Add to bank receipts
-
-    context = {
-        'form': form,
-        'opening_balance_cash': opening_balance_cash,
-        'closing_balance_cash': closing_balance_cash,
-        'opening_balance_bank': opening_balance_bank,
-        'closing_balance_bank': closing_balance_bank,
-        'total_receipts_cash': total_receipts_cash,
-        'total_payments_cash': total_payments_cash,
-        'total_receipts_bank': total_receipts_bank,
-        'total_payments_bank': total_payments_bank,
-        'include_contra': include_contra,
-    }
-
-    return render(request, 'day_book.html', context)
 
 
-def fetch_opening_balance_cash(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    contra_adjustments = 0
-
-    if include_contra:
-        # Adjust opening balance with contra transactions
-        contra_withdrawals = Contra.objects.filter(date__lt=date, contra_type='withdraw').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-        contra_deposits = Contra.objects.filter(date__lt=date, contra_type='deposit').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-        contra_adjustments = contra_deposits - contra_withdrawals  # Deposits increase cash, withdrawals decrease cash
-
-    opening_balance = receipts - vouchers + contra_adjustments
-    return opening_balance
-
-
-def fetch_opening_balance_bank(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    contra_adjustments = 0
-
-    if include_contra:
-        # Adjust opening balance with contra transactions
-        contra_withdrawals = Contra.objects.filter(date__lt=date, contra_type='withdraw').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-        contra_deposits = Contra.objects.filter(date__lt=date, contra_type='deposit').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-        contra_adjustments = contra_withdrawals - contra_deposits  # Withdrawals decrease bank, deposits increase bank
-
-    opening_balance = receipts - vouchers + contra_adjustments
-    return opening_balance
-
-
+###################################################################################################################
 
 def create_receipt(request):
     if request.method == 'POST':
@@ -1181,10 +1089,26 @@ def trail_balance(request):
     return render(request, 'trail_balance.html', context)
 
 ################################################################################################################################
+class DateRangeForm(forms.Form):
+    date_range = forms.ChoiceField(choices=[
+        ('today', 'Today'),
+        ('yesterday', 'Yesterday'),
+        ('this_week', 'This Week'),
+        ('last_week', 'Last Week'),
+        ('this_month', 'This Month'),
+        ('last_month', 'Last Month'),
+        ('custom', 'Custom')
+    ])
+    start_date = forms.DateField(required=False)
+    end_date = forms.DateField(required=False)
+    exclude_contra = forms.BooleanField(required=False, initial=False)  # New field for excluding contra
+from django.shortcuts import render
+from django.db.models import Sum
+from .models import Receipt, Voucher, Contra  # Make sure to import your models
+from .forms import DateRangeForm  # Ensure you import your form
+
 def day_book(request):
     form = DateRangeForm(request.POST or None)
-
-    # Initialize balances and totals
     opening_balance_cash = 0
     closing_balance_cash = 0
     opening_balance_bank = 0
@@ -1193,26 +1117,31 @@ def day_book(request):
     total_receipts_bank = 0
     total_payments_cash = 0
     total_payments_bank = 0
-    include_contra = False  # Default to not include contra
+    include_contra = True  # Default to include contra
 
     if form.is_valid():
-        # Get date range
         start_date, end_date = get_date_range(form.cleaned_data['date_range'])
         if form.cleaned_data['date_range'] == 'custom':
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
-        include_contra = form.cleaned_data.get('include_contra', False)  # Check for contra inclusion
+        
+        # Check the checkbox for excluding contra
+        include_contra = not form.cleaned_data.get('exclude_contra', False)  # Change this line
 
-        # Fetch Cash Transactions
+        # Cash Transactions
         opening_balance_cash = fetch_opening_balance_cash(start_date, include_contra)
         total_receipts_cash = fetch_total_receipts_cash(start_date, end_date)
         total_payments_cash = fetch_total_payments_cash(start_date, end_date)
+
+        # Calculate closing balance for cash
         closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
 
-        # Fetch Bank Transactions
+        # Bank Transactions
         opening_balance_bank = fetch_opening_balance_bank(start_date, include_contra)
         total_receipts_bank = fetch_total_receipts_bank(start_date, end_date)
         total_payments_bank = fetch_total_payments_bank(start_date, end_date)
+
+        # Calculate closing balance for bank
         closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
 
         # Include Contra Entries if checked
@@ -1220,19 +1149,12 @@ def day_book(request):
             contra_entries = Contra.objects.filter(date__range=[start_date, end_date])
             for contra in contra_entries:
                 if contra.contra_type == 'withdraw':
-                    # Withdrawals from bank (cash is increased)
-                    total_receipts_cash += contra.amount  # Cash received
-                    total_payments_bank += contra.amount  # Bank payment
+                    total_receipts_cash += contra.amount  # Add to cash receipts
+                    total_payments_bank += contra.amount  # Add to bank payments
                 elif contra.contra_type == 'deposit':
-                    # Deposits to bank (cash is decreased)
-                    total_payments_cash += contra.amount  # Cash payment
-                    total_receipts_bank += contra.amount  # Bank received
+                    total_payments_cash += contra.amount  # Add to cash payments
+                    total_receipts_bank += contra.amount  # Add to bank receipts
 
-            # Recalculate closing balances after including contra transactions
-            closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
-            closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
-
-    # Prepare context for rendering
     context = {
         'form': form,
         'opening_balance_cash': opening_balance_cash,
@@ -1247,43 +1169,11 @@ def day_book(request):
     }
 
     return render(request, 'day_book.html', context)
-
-
-
-def get_date_range(date_range):
-    today = date.today()
-    if date_range == 'today':
-        start_date = end_date = today
-    elif date_range == 'yesterday':
-        start_date = end_date = today - timedelta(days=1)
-    elif date_range == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif date_range == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif date_range == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif date_range == 'last_month':
-        first_day_of_current_month = today.replace(day=1)
-        last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
-        start_date = last_day_of_last_month.replace(day=1)
-        end_date = last_day_of_last_month
-    else:
-        start_date = end_date = today
-    return start_date, end_date
-
-def fetch_opening_balance_cash(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    opening_balance = receipts - vouchers
-
-    return opening_balance
-
 def fetch_total_receipts_cash(start_date, end_date):
     return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
+def fetch_total_payments_cash(start_date, end_date):
+    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 def fetch_total_payments_cash(start_date, end_date):
     return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
@@ -1300,53 +1190,15 @@ def fetch_total_receipts_bank(start_date, end_date):
 def fetch_total_payments_bank(start_date, end_date):
     return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
+def fetch_opening_balance_cash(date, include_contra=False):
+    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    opening_balance = receipts - vouchers
 
+    return opening_balance
 
-def get_date_range(date_range):
-    today = date.today()
-    if date_range == 'today':
-        start_date = end_date = today
-    elif date_range == 'yesterday':
-        start_date = end_date = today - timedelta(days=1)
-    elif date_range == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif date_range == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif date_range == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif date_range == 'last_month':
-        first_day_of_current_month = today.replace(day=1)
-        last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
-        start_date = last_day_of_last_month.replace(day=1)
-        end_date = last_day_of_last_month
-    else:
-        start_date = end_date = today
-    return start_date, end_date
-
-from django.db.models import Sum
-
-
-from django import forms
-
-class DateRangeForm(forms.Form):
-    start_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    date_range = forms.ChoiceField(
-        choices=[
-            ('today', 'Today'),
-            ('yesterday', 'Yesterday'),
-            ('this_week', 'This Week'),
-            ('last_week', 'Last Week'),
-            ('this_month', 'This Month'),
-            ('last_month', 'Last Month'),
-            ('custom', 'Custom'),
-        ]
-    )
-    include_contra = forms.BooleanField(required=False, initial=False, label='Include Contra Transactions')
-
+def fetch_total_receipts_cash(start_date, end_date):
+    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
 ###############################################################################################################
 
@@ -1605,106 +1457,86 @@ def upload_receipt_from_excel(request):
 
             success_count = 0
             fail_count = 0
-            failed_rows = []
-            failed_reasons = []
+            failed_details = []
             total_rows = len(df)
 
             for index, row in df.iterrows():
                 try:
-                    # Parse Receipt Date, support multiple formats
-                    receipt_date_str = row.get('Receipt Date')
-                    try:
-                        receipt_date = pd.to_datetime(receipt_date_str, format='%d %b %Y', errors='raise')
-                    except (ValueError, TypeError):
-                        receipt_date = pd.to_datetime(receipt_date_str, format='%d/%m/%Y', errors='coerce')
+                    # Parse receipt date with fallback
+                    receipt_date = pd.to_datetime(row.get('Receipt Date'), errors='coerce', dayfirst=True)
+                    if pd.isnull(receipt_date):
+                        raise ValueError("Invalid or missing Receipt Date")
 
                     mode_of_payment = row.get('Mode of Payment')
                     type_of_receipt = row.get('Type of Receipt')
                     amount = row.get('Amount')
 
-                    # Track missing fields
-                    missing_fields = []   
-                    if pd.isnull(type_of_receipt):
-                        missing_fields.append('Type of Receipt')
-                    if pd.isnull(amount):
-                        missing_fields.append('Amount')
-                    if pd.isnull(receipt_date):
-                        missing_fields.append('Receipt Date')
+                    # Track missing required fields
+                    required_fields = {
+                        'Type of Receipt': type_of_receipt,
+                        'Amount': amount,
+                        'Receipt Date': receipt_date,
+                        'Manual Book No': row.get('Manual Book No')  # Required for all modes of payment
+                    }
 
-                    if mode_of_payment == 'Cash':
-                        if pd.isnull(row.get('Manual Book No')):
-                            missing_fields.append('Manual Book No')
-                        if pd.isnull(row.get('Manual Receipt No')):
-                            missing_fields.append('Manual Receipt No')
+                    # Additional condition if mode_of_payment is Cheque
+                    if mode_of_payment == 'Cheque':
+                        required_fields['Cheque Number'] = row.get('Cheque Number')
 
-                    if mode_of_payment == 'Cheque' and pd.isnull(row.get('Cheque Number')):
-                        missing_fields.append('Cheque Number')
-                    
-                    if mode_of_payment != 'Cash' and pd.isnull(row.get('Manual Receipt No')):
-                        manual_receipt_no = Receipt.get_next_receipt_number(mode_of_payment)
-                    else:
-                        manual_receipt_no = row.get('Manual Receipt No')
-
-                    # If any required field is missing, raise an error
+                    # Check for missing fields
+                    missing_fields = [field for field, value in required_fields.items() if pd.isnull(value)]
                     if missing_fields:
                         raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+
+                    # Get or generate Manual Receipt No
+                    manual_receipt_no = row.get('Manual Receipt No') if row.get('Manual Receipt No') else Receipt.get_next_receipt_number(mode_of_payment)
 
                     # Optional fields handling
                     transaction_id = row.get('Transaction ID') if not pd.isnull(row.get('Transaction ID')) else None
                     cheque_number = row.get('Cheque Number') if not pd.isnull(row.get('Cheque Number')) else None
 
-                    # Create and save the Receipt object
-                    receipt = Receipt(
-                        manual_book_no=row.get('Manual Book No') if mode_of_payment == 'Cash' else None,
-                        manual_receipt_no=manual_receipt_no,
-                        name=row.get('Name'),
-                        phone=row.get('Phone'),
-                        address=row.get('Address', ''),
-                        type_of_receipt=type_of_receipt,
-                        mode_of_payment=mode_of_payment,
-                        transaction_id=transaction_id,
-                        cheque_number=cheque_number,
-                        amount=amount,
-                        receipt_date=receipt_date
-                    )
-                    receipt.save()
-                    success_count += 1
+                    # Create and save Receipt object within a transaction
+                    with transaction.atomic():
+                        receipt = Receipt(
+                            manual_book_no=row.get('Manual Book No'),
+                            manual_receipt_no=manual_receipt_no,
+                            name=row.get('Name'),
+                            phone=row.get('Phone'),
+                            address=row.get('Address', ''),
+                            type_of_receipt=type_of_receipt,
+                            mode_of_payment=mode_of_payment,
+                            transaction_id=transaction_id,
+                            cheque_number=cheque_number,
+                            amount=amount,
+                            receipt_date=receipt_date
+                        )
+                        receipt.save()
+                        success_count += 1
 
                 except Exception as e:
                     # Collect details for failed rows
                     fail_count += 1
-                    failed_rows.append(index + 1)
-                    failed_reasons.append(f"Row {index + 1}: {str(e)}")
-                
-                # Update progress bar for client-side updates (if AJAX or session tracking is used)
-                progress = (index + 1) / total_rows * 100
-                request.session['upload_progress'] = progress
+                    failed_details.append({'row': index + 1, 'error': str(e)})
 
-            # Prepare upload report to display after processing
-            report = f"Upload Summary:\n\n"
-            report += f"Total Rows Processed: {total_rows}\n"
-            report += f"Successful Uploads: {success_count}\n"
-            report += f"Failed Uploads: {fail_count}\n\n"
-            report += "Failure Details:\n"
-            for reason in failed_reasons:
-                report += reason + '\n'
+                # Update session-based progress tracking (can be AJAX optimized)
+                request.session['upload_progress'] = (index + 1) / total_rows * 100
 
-            # Store report in session for later display
+            # Prepare and store upload report in session
+            report = f"Upload Summary:\n\nTotal Rows Processed: {total_rows}\nSuccessful Uploads: {success_count}\nFailed Uploads: {fail_count}\n\nFailure Details:\n"
+            for detail in failed_details:
+                report += f"Row {detail['row']}: {detail['error']}\n"
             request.session['upload_report'] = report
 
-            # Display success and error messages
+            # Success and error messages
             messages.success(request, f'Successfully uploaded {success_count} receipts.')
             if fail_count > 0:
                 messages.error(request, f'Failed to upload {fail_count} receipts. Check the report for details.')
 
-            # Redirect to the success page to show the report and progress
             return redirect('upload_receipt_success')
-
     else:
         form = UploadExcelForm()
 
     return render(request, 'upload_receipt_from_excel.html', {'form': form})
-
 
 def upload_progress(request):
     """Returns the upload progress."""

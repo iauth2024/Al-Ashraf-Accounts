@@ -1,18 +1,8 @@
-
-
 import datetime
 from django import forms
-from .models import Receipt
+from .models import Receipt, Voucher, Contra
 
-from django import forms
-from .models import Receipt
-
-from django import forms
-from .models import Receipt
-
-from django import forms
-from .models import Receipt
-
+# Form for Receipt Model
 class ReceiptForm(forms.ModelForm):
     class Meta:
         model = Receipt
@@ -30,44 +20,38 @@ class ReceiptForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         mode_of_payment = cleaned_data.get('mode_of_payment')
-        
+
         # Validation for manual_book_no and manual_receipt_no for all types of payments
         manual_book_no = cleaned_data.get('manual_book_no')
         manual_receipt_no = cleaned_data.get('manual_receipt_no')
-        
+
         if not manual_book_no:
             self.add_error('manual_book_no', 'Manual Book Number is required for all payment types.')
-        
+
         if not manual_receipt_no:
             self.add_error('manual_receipt_no', 'Manual Receipt Number is required for all payment types.')
-        
+
         # Check if the combination of manual_book_no and manual_receipt_no already exists
         if manual_book_no and manual_receipt_no:
             if Receipt.objects.filter(manual_book_no=manual_book_no, manual_receipt_no=manual_receipt_no).exists():
                 self.add_error('manual_receipt_no', 'This combination of Manual Book Number and Manual Receipt Number already exists.')
-        
+
         # Uniqueness validation for transaction_id
         transaction_id = cleaned_data.get('transaction_id')
         if transaction_id:
             if Receipt.objects.filter(transaction_id=transaction_id).exists():
                 self.add_error('transaction_id', 'Transaction ID must be unique.')
-        
+
         # Uniqueness validation for cheque_number
         cheque_number = cleaned_data.get('cheque_number')
         if cheque_number:
             if Receipt.objects.filter(cheque_number=cheque_number).exists():
                 self.add_error('cheque_number', 'Cheque Number must be unique.')
-        
+
         return cleaned_data
 
 
-
-
-
-from .models import Receipt, Voucher
-from django import forms
-from .models import Voucher
-
+# Form for Voucher Model
 class VoucherForm(forms.ModelForm):
     class Meta:
         model = Voucher
@@ -97,14 +81,15 @@ class ApprovalForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         user = kwargs.pop('user', None)  # Fetch the user from kwargs
         super(ApprovalForm, self).__init__(*args, **kwargs)
-        
+
         # Customize approved_by field choices based on the current user
         if user:
             self.fields['approved_by'].queryset = user.__class__.objects.filter(username=user.username)
-    
+
     class Meta:
         model = Voucher
         fields = ['approved_by', 'status', 'rejection_reason', 'edited']
+
 
 class RejectionForm(forms.ModelForm):
     class Meta:
@@ -112,11 +97,7 @@ class RejectionForm(forms.ModelForm):
         fields = ['rejection_reason']
 
 
-
-
-from django import forms
-from .models import Voucher
-
+# Form for Voucher Filtering
 class VoucherFilterForm(forms.Form):
     voucher_no = forms.CharField(required=False, label='Voucher No')
     paid_to = forms.CharField(required=False, label='Paid To')
@@ -131,11 +112,8 @@ class VoucherFilterForm(forms.Form):
     received_by = forms.CharField(required=False, label='Received By')
     status = forms.ChoiceField(choices=[('', 'All')] + Voucher.VOUCHER_STATUS_CHOICES, required=False, label='Status')
 
-#################################################################################################################
 
-from django import forms
-from datetime import date
-
+# Form for Date Range Selection
 DATE_RANGE_CHOICES = [
     ('today', 'Today'),
     ('yesterday', 'Yesterday'),
@@ -143,29 +121,34 @@ DATE_RANGE_CHOICES = [
     ('last_week', 'Last Week'),
     ('this_month', 'This Month'),
     ('last_month', 'Last Month'),
-    ('custom', 'Custom Range')
+    ('custom', 'Custom Range'),
 ]
 
 class DateRangeForm(forms.Form):
-    start_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
-    end_date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False)
     date_range = forms.ChoiceField(choices=DATE_RANGE_CHOICES, required=False, initial='today')
+    start_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
 
     def clean(self):
         cleaned_data = super().clean()
         date_range = cleaned_data.get('date_range')
 
+        # Validation for custom date range
         if date_range == 'custom':
-            if not cleaned_data.get('start_date') or not cleaned_data.get('end_date'):
+            start_date = cleaned_data.get('start_date')
+            end_date = cleaned_data.get('end_date')
+            if not start_date or not end_date:
                 raise forms.ValidationError('Start date and end date are required for custom range.')
+            if start_date > end_date:
+                raise forms.ValidationError('Start date must be before or equal to end date.')
+        elif date_range is None:
+            # Optionally raise an error if no date range is selected
+            raise forms.ValidationError('Please select a date range.')
+
+        return cleaned_data
 
 
-from django import forms
-from .models import Contra
-
-from django import forms
-from .models import Contra  # Ensure Contra is correctly imported if needed
-
+# Form for Contra Model
 class ContraForm(forms.ModelForm):
     class Meta:
         model = Contra
@@ -177,9 +160,8 @@ class ContraForm(forms.ModelForm):
             raise forms.ValidationError("This contra number already exists. Please choose a different one.")
         return contra_no
 
-from django import forms
-from .models import Contra  # Ensure Contra is correctly imported if needed
 
+# Form for Filtering Contra Transactions
 class ContraFilterForm(forms.Form):
     contra_no = forms.CharField(required=False)
     date = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date'}))
@@ -189,27 +171,11 @@ class ContraFilterForm(forms.Form):
     performed_by = forms.CharField(required=False)
 
 
-
+# Form for Uploading Excel Files
 class UploadExcelForm(forms.Form):
     excel_file = forms.FileField()
-from django import forms
 
+
+# Additional form for Excel Upload (if needed)
 class ExcelUploadForm(forms.Form):
     excel_file = forms.FileField()
-from django import forms
-from django.utils import timezone
-
-DATE_RANGE_CHOICES = [
-    ('today', 'Today'),
-    ('yesterday', 'Yesterday'),
-    ('this_week', 'This Week'),
-    ('last_week', 'Last Week'),
-    ('this_month', 'This Month'),
-    ('last_month', 'Last Month'),
-    ('custom', 'Custom'),
-]
-
-class DateRangeForm(forms.Form):
-    date_range = forms.ChoiceField(choices=DATE_RANGE_CHOICES, required=False)
-    start_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
