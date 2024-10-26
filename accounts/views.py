@@ -1089,23 +1089,198 @@ def trail_balance(request):
     return render(request, 'trail_balance.html', context)
 
 ################################################################################################################################
+################################################################################################################################
+def day_book(request):
+    form = DateRangeForm(request.POST or None)
+
+    # Initialize balances and totals
+    opening_balance_cash = 0
+    closing_balance_cash = 0
+    opening_balance_bank = 0
+    closing_balance_bank = 0
+    total_receipts_cash = 0
+    total_receipts_bank = 0
+    total_payments_cash = 0
+    total_payments_bank = 0
+    include_contra = False  # Default to not include contra
+
+    if form.is_valid():
+        # Get date range
+        start_date, end_date = get_date_range(form.cleaned_data['date_range'])
+        if form.cleaned_data['date_range'] == 'custom':
+            start_date = form.cleaned_data['start_date']
+            end_date = form.cleaned_data['end_date']
+        include_contra = form.cleaned_data.get('include_contra', False)  # Check for contra inclusion
+
+        # Fetch Cash Transactions
+        opening_balance_cash = fetch_opening_balance_cash(start_date, include_contra)
+        total_receipts_cash = fetch_total_receipts_cash(start_date, end_date)
+        total_payments_cash = fetch_total_payments_cash(start_date, end_date)
+        closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
+
+        # Fetch Bank Transactions
+        opening_balance_bank = fetch_opening_balance_bank(start_date, include_contra)
+        total_receipts_bank = fetch_total_receipts_bank(start_date, end_date)
+        total_payments_bank = fetch_total_payments_bank(start_date, end_date)
+        closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
+
+        # Include Contra Entries if checked
+        if include_contra:
+            contra_entries = Contra.objects.filter(date__range=[start_date, end_date])
+            for contra in contra_entries:
+                if contra.contra_type == 'withdraw':
+                    # Withdrawals from bank (cash is increased)
+                    total_receipts_cash += contra.amount  # Cash received
+                    total_payments_bank += contra.amount  # Bank payment
+                elif contra.contra_type == 'deposit':
+                    # Deposits to bank (cash is decreased)
+                    total_payments_cash += contra.amount  # Cash payment
+                    total_receipts_bank += contra.amount  # Bank received
+
+            # Recalculate closing balances after including contra transactions
+            closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
+            closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
+
+    # Prepare context for rendering
+    context = {
+        'form': form,
+        'opening_balance_cash': opening_balance_cash,
+        'closing_balance_cash': closing_balance_cash,
+        'opening_balance_bank': opening_balance_bank,
+        'closing_balance_bank': closing_balance_bank,
+        'total_receipts_cash': total_receipts_cash,
+        'total_payments_cash': total_payments_cash,
+        'total_receipts_bank': total_receipts_bank,
+        'total_payments_bank': total_payments_bank,
+        'include_contra': include_contra,
+    }
+
+    return render(request, 'day_book.html', context)
+
+
+
+def get_date_range(date_range):
+    today = date.today()
+    if date_range == 'today':
+        start_date = end_date = today
+    elif date_range == 'yesterday':
+        start_date = end_date = today - timedelta(days=1)
+    elif date_range == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif date_range == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_current_month = today.replace(day=1)
+        last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
+        start_date = last_day_of_last_month.replace(day=1)
+        end_date = last_day_of_last_month
+    else:
+        start_date = end_date = today
+    return start_date, end_date
+
+def fetch_opening_balance_cash(date, include_contra=False):
+    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    opening_balance = receipts - vouchers
+
+    return opening_balance
+
+def fetch_total_receipts_cash(start_date, end_date):
+    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+
+def fetch_total_payments_cash(start_date, end_date):
+    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+
+def fetch_opening_balance_bank(date, include_contra=False):
+    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    opening_balance = receipts - vouchers
+
+    return opening_balance
+
+def fetch_total_receipts_bank(start_date, end_date):
+    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+
+def fetch_total_payments_bank(start_date, end_date):
+    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+
+
+
+def get_date_range(date_range):
+    today = date.today()
+    if date_range == 'today':
+        start_date = end_date = today
+    elif date_range == 'yesterday':
+        start_date = end_date = today - timedelta(days=1)
+    elif date_range == 'this_week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif date_range == 'last_week':
+        start_date = today - timedelta(days=today.weekday() + 7)
+        end_date = start_date + timedelta(days=6)
+    elif date_range == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif date_range == 'last_month':
+        first_day_of_current_month = today.replace(day=1)
+        last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
+        start_date = last_day_of_last_month.replace(day=1)
+        end_date = last_day_of_last_month
+    else:
+        start_date = end_date = today
+    return start_date, end_date
+
+from django.db.models import Sum
+
+
+from django import forms
+
 class DateRangeForm(forms.Form):
-    date_range = forms.ChoiceField(choices=[
-        ('today', 'Today'),
-        ('yesterday', 'Yesterday'),
-        ('this_week', 'This Week'),
-        ('last_week', 'Last Week'),
-        ('this_month', 'This Month'),
-        ('last_month', 'Last Month'),
-        ('custom', 'Custom')
-    ])
-    start_date = forms.DateField(required=False)
-    end_date = forms.DateField(required=False)
-    exclude_contra = forms.BooleanField(required=False, initial=False)  # New field for excluding contra
+    start_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
+    end_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
+    date_range = forms.ChoiceField(
+        choices=[
+            ('today', 'Today'),
+            ('yesterday', 'Yesterday'),
+            ('this_week', 'This Week'),
+            ('last_week', 'Last Week'),
+            ('this_month', 'This Month'),
+            ('last_month', 'Last Month'),
+            ('custom', 'Custom'),
+        ]
+    )
+    include_contra = forms.BooleanField(required=False, initial=False, label='Include Contra Transactions')
+
+###############################################################################################################
+
+
+# accounts/views.py
+
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import ReceiptForm
+from .models import Receipt
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import ReceiptForm
+from .models import Receipt
+
 from django.shortcuts import render
 from django.db.models import Sum
-from .models import Receipt, Voucher, Contra  # Make sure to import your models
-from .forms import DateRangeForm  # Ensure you import your form
+from .forms import DateRangeForm
+from .models import Receipt, Voucher, Contra  # Adjust import based on your actual models
 
 def day_book(request):
     form = DateRangeForm(request.POST or None)
@@ -1126,7 +1301,7 @@ def day_book(request):
             end_date = form.cleaned_data['end_date']
         
         # Check the checkbox for excluding contra
-        include_contra = not form.cleaned_data.get('exclude_contra', False)  # Change this line
+        include_contra = not form.cleaned_data.get('exclude_contra', False)  # Default to True if not set
 
         # Cash Transactions
         opening_balance_cash = fetch_opening_balance_cash(start_date, include_contra)
@@ -1169,36 +1344,34 @@ def day_book(request):
     }
 
     return render(request, 'day_book.html', context)
-def fetch_total_receipts_cash(start_date, end_date):
-    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
-def fetch_total_payments_cash(start_date, end_date):
-    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-def fetch_total_payments_cash(start_date, end_date):
-    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_opening_balance_bank(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    opening_balance = receipts - vouchers
-
-    return opening_balance
-
-def fetch_total_receipts_bank(start_date, end_date):
-    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_total_payments_bank(start_date, end_date):
-    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_opening_balance_cash(date, include_contra=False):
+def fetch_opening_balance_cash(date, include_contra=True):
     receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
     vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    opening_balance = receipts - vouchers
+    contra_adjustments = 0
 
+    if include_contra:
+        # Adjust opening balance with contra transactions
+        contra_withdrawals = Contra.objects.filter(date__lt=date, contra_type='withdraw').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        contra_deposits = Contra.objects.filter(date__lt=date, contra_type='deposit').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        contra_adjustments = contra_deposits - contra_withdrawals  # Deposits increase cash, withdrawals decrease cash
+
+    opening_balance = receipts - vouchers + contra_adjustments
     return opening_balance
 
-def fetch_total_receipts_cash(start_date, end_date):
-    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+def fetch_opening_balance_bank(date, include_contra=True):
+    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+    contra_adjustments = 0
+
+    if include_contra:
+        # Adjust opening balance with contra transactions
+        contra_withdrawals = Contra.objects.filter(date__lt=date, contra_type='withdraw').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        contra_deposits = Contra.objects.filter(date__lt=date, contra_type='deposit').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
+        contra_adjustments = contra_withdrawals - contra_deposits  # Withdrawals decrease bank, deposits increase bank
+
+    opening_balance = receipts - vouchers + contra_adjustments
+    return opening_balance
 
 ###############################################################################################################
 
