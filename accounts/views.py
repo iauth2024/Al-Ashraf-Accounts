@@ -1847,3 +1847,66 @@ def upload_vouchers_from_excel(request):
 
 def upload_vouchers_success(request):
     return render(request, 'upload_vouchers_success.html')
+
+##################################################
+
+from django.shortcuts import render
+from django.db.models import Sum, Count
+from .models import Receipt
+from django.db.models import Count, Sum
+from django.shortcuts import render
+from .models import Receipt  # Assuming Receipt model contains necessary fields
+from django.db.models import Count, Sum
+from django.shortcuts import render
+from .models import Receipt  # Assuming Receipt model contains necessary fields
+
+def book_summary(request):
+    # Aggregate data by manual_book_no (book number) and mode_of_payment
+    book_summary_data = Receipt.objects.values(
+        'manual_book_no',  # Grouping by book number
+        'mode_of_payment'  # Grouping by mode of payment
+    ).annotate(
+        receipt_count=Count('id'),  # Counting the number of receipts for each group
+        total_amount=Sum('amount')  # Summing the total amount for each group
+    )
+    
+    # Initialize an empty dictionary to store the data for each book number
+    summary = {}
+
+    # Loop over the aggregated data to organize it by book number
+    for entry in book_summary_data:
+        book_number = entry['manual_book_no']
+        
+        # Initialize book entry if not already present
+        if book_number not in summary:
+            summary[book_number] = {
+                'book_number': book_number,
+                'receipt_count': 0,
+                'cash': 0,
+                'upi': 0,
+                'cheque': 0,
+                'bank_transfer': 0,
+                'total_amount': 0
+            }
+        
+        # Add the aggregated data to the respective fields
+        summary[book_number]['receipt_count'] += entry['receipt_count']
+        summary[book_number]['total_amount'] += entry['total_amount']
+        
+        # Assign amounts based on mode of payment
+        if entry['mode_of_payment'] == 'Cash':
+            summary[book_number]['cash'] += entry['total_amount']
+        elif entry['mode_of_payment'] == 'UPI':
+            summary[book_number]['upi'] += entry['total_amount']
+        elif entry['mode_of_payment'] == 'Cheque':
+            summary[book_number]['cheque'] += entry['total_amount']
+        elif entry['mode_of_payment'] == 'Bank Transfer':
+            summary[book_number]['bank_transfer'] += entry['total_amount']
+    
+    # Convert the summary dictionary to a list for passing to the template
+    summary_data = list(summary.values())
+
+    # Return the data to the template
+    return render(request, 'book_summary.html', {
+        'book_summary': summary_data
+    })

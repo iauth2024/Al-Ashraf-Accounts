@@ -32,7 +32,7 @@ urlpatterns = [
     path('day-book/<int:ledger_id>/', day_book, name='day_book_with_ledger_id'),
     path('receipt/<str:type_of_receipt>/', receipt_detail, name='receipt_detail'),
     path('voucher/<str:head_of_account>/', views.voucher_detail, name='voucher_detail'),
-
+    path('book-summary/', views.book_summary, name='book_summary'),
     path('voucher/<int:voucher_id>/', voucher_detail, name='view_voucher'), 
     path('ledger_page/', ledger_page, name='ledger_page'),
     path('ledger_page_details/', ledger_page_details, name='ledger_page_details'),

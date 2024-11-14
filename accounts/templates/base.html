@@ -103,7 +103,9 @@
             <a href="{% url 'trail_balance' %}"><i class="fas fa-balance-scale"></i> Trail Balance</a>
             <a href="{% url 'create_contra' %}"><i class="fas fa-exchange-alt"></i> Create Contra</a>
             <a href="{% url 'list_contra' %}"><i class="fas fa-list-alt"></i> List Contra</a>
-            
+            <!-- New "Book Summary" Link -->
+            <a href="{% url 'book_summary' %}"><i class="fas fa-book"></i> Book Summary</a>
+
             {% if user.is_authenticated %}
                 {% if perms.accounts.can_approve_vouchers %}
                     <a href="{% url 'approver_page' %}"><i class="fas fa-check"></i> Approver Page</a>
