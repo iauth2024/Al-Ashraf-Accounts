@@ -71,41 +71,51 @@ def dashboard(request):
 
 
 ###################################################################################################################
+from datetime import datetime, timedelta
+from django.contrib.auth.decorators import login_required
+
 @login_required
 def homepage(request):
-    today = datetime.date.today()
-    form = DateRangeForm(request.GET or None)
+    # Get today's date
+    today = datetime.today().date()
     
+    # Initialize form and default start/end dates
+    form = DateRangeForm(request.GET or None)
     start_date = end_date = None
     
     if form.is_valid():
         date_range = form.cleaned_data['date_range']
         
+        # Handle different date ranges
         if date_range == 'today':
             start_date = end_date = today
         elif date_range == 'yesterday':
-            start_date = end_date = today - datetime.timedelta(days=1)
+            start_date = end_date = today - timedelta(days=1)
         elif date_range == 'this_week':
-            start_date = today - datetime.timedelta(days=today.weekday())
+            start_date = today - timedelta(days=today.weekday())
             end_date = today
         elif date_range == 'last_week':
-            start_date = today - datetime.timedelta(days=today.weekday() + 7)
-            end_date = start_date + datetime.timedelta(days=6)
+            start_date = today - timedelta(days=today.weekday() + 7)
+            end_date = start_date + timedelta(days=6)
         elif date_range == 'this_month':
             start_date = today.replace(day=1)
             end_date = today
         elif date_range == 'last_month':
             first_day_of_this_month = today.replace(day=1)
-            last_day_of_last_month = first_day_of_this_month - datetime.timedelta(days=1)
+            last_day_of_last_month = first_day_of_this_month - timedelta(days=1)
             start_date = last_day_of_last_month.replace(day=1)
             end_date = last_day_of_last_month
         elif date_range == 'custom':
             start_date = form.cleaned_data['start_date']
             end_date = form.cleaned_data['end_date']
     
+    # Default date range if none provided
     if not start_date or not end_date:
         start_date = today.replace(day=1)
         end_date = today
+
+    # Rest of your logic here
+
 
     # Datewise summaries for receipts and vouchers
     receipts_by_date = (
@@ -201,23 +211,14 @@ def logout_view(request):
 
 
 
-# accounts/views.py
-
-
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 def create_receipt(request):
     if request.method == 'POST':
         form = ReceiptForm(request.POST)
         if form.is_valid():
             receipt = form.save(commit=False)
-            if receipt.mode_of_payment in ['UPI', 'Bank Transfer', 'Cheque']:
-                receipt.manual_receipt_no = Receipt.get_next_receipt_number(receipt.mode_of_payment)
-            else:
-                receipt.manual_receipt_no = form.cleaned_data.get('manual_receipt_no')
+            # Manual entry for all payments, no auto-generation
+            receipt.manual_receipt_no = form.cleaned_data.get('manual_receipt_no')
             receipt.save()
             messages.success(request, 'Receipt created successfully!')
             return redirect('receipt_success', receipt_id=receipt.id)
@@ -230,63 +231,12 @@ def create_receipt(request):
     
     return render(request, 'create_receipt.html', {'form': form})
 
-def generate_auto_receipt_no(mode_of_payment):
-    """
-    Generate an auto-receipt number based on the mode of payment.
-    """
-    # Define prefix based on mode of payment
-    if mode_of_payment == 'UPI':
-        prefix = 'UPI-'
-    elif mode_of_payment == 'Bank Transfer':
-        prefix = 'BT-'
-    elif mode_of_payment == 'Cheque':
-        prefix = 'Cq-'
-    else:
-        prefix = ''
-
-    # Get the last receipt for the given mode of payment
-    last_receipt = Receipt.objects.filter(mode_of_payment=mode_of_payment).order_by('-id').first()
-
-    # Determine the new receipt number
-    if last_receipt and last_receipt.manual_receipt_no:
-        try:
-            # Extract and increment the number part
-            last_number = int(last_receipt.manual_receipt_no.split('-')[-1])
-            new_number = last_number + 1
-        except ValueError:
-            # Handle case where the receipt number cannot be converted to an integer
-            new_number = 1
-    else:
-        # Start from 1 if there are no previous receipts
-        new_number = 1
-
-    # Return the formatted new receipt number
-    return f"{prefix}{new_number:04d}"
 
 
 
 
 
 
-
-def generate_receipt_number(mode_of_payment):
-    prefix = {
-        'UPI': 'UPI-',
-        'Bank Transfer': 'BT-',
-        'Cheque': 'CQ-'
-    }.get(mode_of_payment, '')
-
-    last_receipt = Receipt.objects.filter(mode_of_payment=mode_of_payment).order_by('-manual_receipt_no').first()
-    if last_receipt and last_receipt.manual_receipt_no:
-        try:
-            last_number = int(last_receipt.manual_receipt_no.split('-')[-1])
-            next_number = last_number + 1
-        except ValueError:
-            next_number = 1
-    else:
-        next_number = 1
-
-    return f'{prefix}{next_number:04d}'
 
 
 
@@ -508,24 +458,32 @@ def approver_page(request):
         'status_filter': status_filter
     })
 
+from django.db import transaction
+from django.urls import reverse
+from django.http import HttpResponseRedirect
+
 @login_required
 def create_voucher(request):
     if request.method == 'POST':
         form = VoucherForm(request.POST)
         if form.is_valid():
-            voucher = form.save(commit=False)
-            voucher.created_by = request.user
-            voucher.save()
-            messages.success(request, 'Voucher created successfully!')
-            return redirect('voucher_success', voucher_id=voucher.id)
+            try:
+                with transaction.atomic():  # Ensure atomicity
+                    voucher = form.save(commit=False)
+                    voucher.created_by = request.user
+                    voucher.save()
+                messages.success(request, 'Voucher created successfully!')
+                return HttpResponseRedirect(reverse('voucher_success', args=[voucher.id]))
+            except Exception as e:
+                messages.error(request, f"An error occurred: {str(e)}")
         else:
-            # Collect form errors
+            # Collect form errors for messaging framework (optional)
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
     else:
         form = VoucherForm()
-    
+
     return render(request, 'create_voucher.html', {'form': form})
 
 @login_required
@@ -645,39 +603,66 @@ def list_vouchers(request):
     form = VoucherFilterForm(request.GET or None)
     vouchers = Voucher.objects.all()
 
+    # Apply filters only if the form is valid
     if form.is_valid():
-        if form.cleaned_data['voucher_no']:
+        # Filtering by voucher_no
+        if form.cleaned_data.get('voucher_no'):
             vouchers = vouchers.filter(voucher_no__icontains=form.cleaned_data['voucher_no'])
-        if form.cleaned_data['paid_to']:
+        
+        # Filtering by paid_to
+        if form.cleaned_data.get('paid_to'):
             vouchers = vouchers.filter(paid_to__icontains=form.cleaned_data['paid_to'])
-        if form.cleaned_data['on_account_of']:
+
+        # Filtering by on_account_of
+        if form.cleaned_data.get('on_account_of'):
             vouchers = vouchers.filter(on_account_of__icontains=form.cleaned_data['on_account_of'])
-        if form.cleaned_data['head_of_account']:
+
+        # Filtering by head_of_account
+        if form.cleaned_data.get('head_of_account'):
             vouchers = vouchers.filter(head_of_account__name__icontains=form.cleaned_data['head_of_account'])
-        if form.cleaned_data['mode_of_payment']:
+
+        # Filtering by mode_of_payment
+        if form.cleaned_data.get('mode_of_payment'):
             vouchers = vouchers.filter(mode_of_payment=form.cleaned_data['mode_of_payment'])
-        if form.cleaned_data['transaction_id']:
+
+        # Filtering by transaction_id
+        if form.cleaned_data.get('transaction_id'):
             vouchers = vouchers.filter(transaction_id__icontains=form.cleaned_data['transaction_id'])
-        if form.cleaned_data['amount_min'] is not None:
+
+        # Filtering by amount (min and max)
+        if form.cleaned_data.get('amount_min') is not None:
             vouchers = vouchers.filter(amount__gte=form.cleaned_data['amount_min'])
-        if form.cleaned_data['amount_max'] is not None:
+        if form.cleaned_data.get('amount_max') is not None:
             vouchers = vouchers.filter(amount__lte=form.cleaned_data['amount_max'])
-        if form.cleaned_data['start_date']:
+
+        # Filtering by voucher_date (start_date and end_date)
+        if form.cleaned_data.get('start_date'):
             vouchers = vouchers.filter(voucher_date__gte=form.cleaned_data['start_date'])
-        if form.cleaned_data['end_date']:
+        if form.cleaned_data.get('end_date'):
             vouchers = vouchers.filter(voucher_date__lte=form.cleaned_data['end_date'])
-        if form.cleaned_data['received_by']:
+
+        # Filtering by received_by
+        if form.cleaned_data.get('received_by'):
             vouchers = vouchers.filter(received_by__icontains=form.cleaned_data['received_by'])
-        if form.cleaned_data['status']:
+
+        # Filtering by status
+        if form.cleaned_data.get('status'):
             vouchers = vouchers.filter(status=form.cleaned_data['status'])
 
+    # Apply pagination AFTER filtering
     paginator = Paginator(vouchers, 10)  # Show 10 vouchers per page
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Build the query parameters to maintain filters during pagination
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        query_params.pop('page')  # Remove 'page' parameter to avoid duplication in URLs
+
     return render(request, 'list_vouchers.html', {
         'form': form,
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'query_params': query_params,  # Pass query params for pagination links
     })
 
 def download_vouchers(vouchers, download_format):
@@ -994,6 +979,8 @@ def ledger_page_details(request):
 
 
 
+
+
 def receipt_detail(request, type_of_receipt):
     date_form = DateRangeForm(request.GET or None)
     date_range = date_form.cleaned_data if date_form.is_valid() else {}
@@ -1004,12 +991,16 @@ def receipt_detail(request, type_of_receipt):
         start_date, end_date = get_date_range(date_range.get('date_range', 'today'))
         receipts = receipts.filter(receipt_date__range=[start_date, end_date])
     
+    # Debugging output
+    print(receipts.values())  # Add this line to inspect the receipt objects
+    
     context = {
         'receipts': receipts,
         'type_of_receipt': type_of_receipt,
         'date_form': date_form
     }
     return render(request, 'receipt_detail.html', context)
+
 
 
 def voucher_detail(request, head_of_account):
@@ -1037,13 +1028,17 @@ def voucher_detail(request, head_of_account):
 ###############################################################################################################
 
 
+from django.shortcuts import render
+from django.db.models import Sum
+from datetime import date
+from .models import Receipt, Voucher
 
 def trail_balance(request):
     # Get the date range from the request, default to the current financial year
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     financial_year = request.GET.get('financial_year')
-    
+
     # Default to financial year start if no dates provided
     if not start_date:
         if financial_year:
@@ -1070,8 +1065,11 @@ def trail_balance(request):
 
     # Group Receipts and Vouchers by type of receipt and head of account
     receipt_groups = receipts.values('type_of_receipt').annotate(total_amount=Sum('amount'))
-    voucher_groups = vouchers.values('head_of_account').annotate(total_amount=Sum('amount'))
+    
+    # Ensure we get the name of the head of account
+    voucher_groups = vouchers.values('head_of_account__name').annotate(total_amount=Sum('amount'))
 
+    # Prepare context for the template
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -1085,158 +1083,114 @@ def trail_balance(request):
     return render(request, 'trail_balance.html', context)
 
 ################################################################################################################################
-
-
-from django.shortcuts import render
+from datetime import datetime, timedelta
 from django.db.models import Sum
-from datetime import date, timedelta
-from .forms import DateRangeForm
-from .models import Receipt, Voucher
+from django.utils import timezone
+from django.shortcuts import render
+from .models import Receipt, Voucher, Contra
 
 def day_book(request):
-    form = DateRangeForm(request.POST or None)
-    opening_balance_cash = 0
-    closing_balance_cash = 0
-    opening_balance_bank = 0
-    closing_balance_bank = 0
-    total_receipts_cash = 0
-    total_receipts_bank = 0
-    total_payments_cash = 0
-    total_payments_bank = 0
-    include_contra = False  # Default to not include contra
+    # Date range filter
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
 
-    if form.is_valid():
-        start_date, end_date = get_date_range(form.cleaned_data['date_range'])
-        if form.cleaned_data['date_range'] == 'custom':
-            start_date = form.cleaned_data['start_date']
-            end_date = form.cleaned_data['end_date']
-        include_contra = form.cleaned_data.get('include_contra', False)  # Default to False if not set
+    # Default to today if no date range is provided
+    if not start_date or not end_date:
+        today = timezone.now().date()
+        start_date = today
+        end_date = today
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
 
-        # Cash Transactions
-        opening_balance_cash = fetch_opening_balance_cash(start_date)
-        total_receipts_cash = fetch_total_receipts_cash(start_date, end_date)
-        total_payments_cash = fetch_total_payments_cash(start_date, end_date)
-        closing_balance_cash = opening_balance_cash + total_receipts_cash - total_payments_cash
+    # Calculate Previous Day for Opening Balance
+    previous_day = start_date - timedelta(days=1)
 
-        # Bank Transactions
-        opening_balance_bank = fetch_opening_balance_bank(start_date)
-        total_receipts_bank = fetch_total_receipts_bank(start_date, end_date)
-        total_payments_bank = fetch_total_payments_bank(start_date, end_date)
-        closing_balance_bank = opening_balance_bank + total_receipts_bank - total_payments_bank
+    # Calculate opening balance as of the previous day
+    total_cash_receipts = Receipt.objects.filter(
+        mode_of_payment__iexact='cash',
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
 
-        # Include Contra Entries if checked
-        if include_contra:
-            contra_entries = Contra.objects.filter(date__range=[start_date, end_date])
-            for contra in contra_entries:
-                if contra.contra_type == 'withdraw':
-                    closing_balance_bank -= contra.amount
-                    closing_balance_cash += contra.amount
-                elif contra.contra_type == 'deposit':
-                    closing_balance_cash -= contra.amount
-                    closing_balance_bank += contra.amount
+    total_bank_receipts = Receipt.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
 
+    total_cash_payments = Voucher.objects.filter(
+        mode_of_payment__iexact='cash',
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_bank_payments = Voucher.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Adjusted contra transactions calculation (previous day)
+    contra_deposit = Contra.objects.filter(
+        contra_type='deposit',
+        date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    contra_withdraw = Contra.objects.filter(
+        contra_type='withdraw',
+        date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate Opening Balances
+    opening_cash_balance = total_cash_receipts - total_cash_payments + contra_withdraw - contra_deposit
+    opening_bank_balance = total_bank_receipts - total_bank_payments + contra_deposit - contra_withdraw
+    opening_total_balance = opening_cash_balance + opening_bank_balance
+
+    # Calculate Receipts and Payments within the date range
+    receipts = Receipt.objects.filter(receipt_date__range=(start_date, end_date))
+    vouchers = Voucher.objects.filter(voucher_date__range=(start_date, end_date))
+
+    # Calculate totals for receipts and vouchers
+    total_cash_receipts = receipts.filter(mode_of_payment__iexact='cash').aggregate(total=Sum('amount'))['total'] or 0
+    total_bank_receipts = receipts.filter(mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque']).aggregate(total=Sum('amount'))['total'] or 0
+    total_cash_payments = vouchers.filter(mode_of_payment__iexact='cash').aggregate(total=Sum('amount'))['total'] or 0
+    total_bank_payments = vouchers.filter(mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque']).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate Contras within the date range
+    contra_deposit = Contra.objects.filter(
+        contra_type='deposit',
+        date__range=(start_date, end_date)
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    contra_withdraw = Contra.objects.filter(
+        contra_type='withdraw',
+        date__range=(start_date, end_date)
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate Closing Balances
+    closing_cash_balance = opening_cash_balance + total_cash_receipts - total_cash_payments - contra_deposit + contra_withdraw
+    closing_bank_balance = opening_bank_balance + total_bank_receipts - total_bank_payments + contra_deposit - contra_withdraw
+    closing_total_balance = closing_cash_balance + closing_bank_balance
+
+    # Pass all values to the template
     context = {
-        'form': form,
-        'opening_balance_cash': opening_balance_cash,
-        'closing_balance_cash': closing_balance_cash,
-        'opening_balance_bank': opening_balance_bank,
-        'closing_balance_bank': closing_balance_bank,
-        'total_receipts_cash': total_receipts_cash,
-        'total_payments_cash': total_payments_cash,
-        'total_receipts_bank': total_receipts_bank,
-        'total_payments_bank': total_payments_bank,
-        'include_contra': include_contra,
+        'start_date': start_date,
+        'end_date': end_date,
+        'opening_cash_balance': opening_cash_balance,
+        'opening_bank_balance': opening_bank_balance,
+        'opening_total_balance': opening_total_balance,
+        'cash_receipts': total_cash_receipts,
+        'bank_receipts': total_bank_receipts,
+        'cash_payments': total_cash_payments,
+        'bank_payments': total_bank_payments,
+        'contra_deposit': contra_deposit,
+        'contra_withdraw': contra_withdraw,
+        'closing_cash_balance': closing_cash_balance,
+        'closing_bank_balance': closing_bank_balance,
+        'closing_total_balance': closing_total_balance,
     }
 
     return render(request, 'day_book.html', context)
 
 
-def get_date_range(date_range):
-    today = date.today()
-    if date_range == 'today':
-        start_date = end_date = today
-    elif date_range == 'yesterday':
-        start_date = end_date = today - timedelta(days=1)
-    elif date_range == 'this_week':
-        start_date = today - timedelta(days=today.weekday())
-        end_date = today
-    elif date_range == 'last_week':
-        start_date = today - timedelta(days=today.weekday() + 7)
-        end_date = start_date + timedelta(days=6)
-    elif date_range == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif date_range == 'last_month':
-        first_day_of_current_month = today.replace(day=1)
-        last_day_of_last_month = first_day_of_current_month - timedelta(days=1)
-        start_date = last_day_of_last_month.replace(day=1)
-        end_date = last_day_of_last_month
-    else:
-        start_date = end_date = today
-    return start_date, end_date
 
-def fetch_opening_balance_cash(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    opening_balance = receipts - vouchers
-
-    if include_contra:
-        contra_entries = Contra.objects.filter(date__lt=date)
-        for contra in contra_entries:
-            if contra.contra_type == 'withdraw':
-                opening_balance -= contra.amount
-            elif contra.contra_type == 'deposit':
-                opening_balance += contra.amount
-
-    return opening_balance
-
-
-def fetch_total_receipts_cash(start_date, end_date):
-    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment='Cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_total_payments_cash(start_date, end_date):
-    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment='cash').aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_opening_balance_bank(date, include_contra=False):
-    receipts = Receipt.objects.filter(receipt_date__lt=date, mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    vouchers = Voucher.objects.filter(voucher_date__lt=date, mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-    opening_balance = receipts - vouchers
-
-    if include_contra:
-        contra_entries = Contra.objects.filter(date__lt=date)
-        for contra in contra_entries:
-            if contra.contra_type == 'withdraw':
-                opening_balance += contra.amount
-            elif contra.contra_type == 'deposit':
-                opening_balance -= contra.amount
-
-    return opening_balance
-
-
-def fetch_total_receipts_bank(start_date, end_date):
-    return Receipt.objects.filter(receipt_date__range=[start_date, end_date], mode_of_payment__in=['UPI', 'Cheque', 'Bank Transfer']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-def fetch_total_payments_bank(start_date, end_date):
-    return Voucher.objects.filter(voucher_date__range=[start_date, end_date], mode_of_payment__in=['bank_transfer', 'cheque']).aggregate(total_amount=Sum('amount'))['total_amount'] or 0
-
-
-from django import forms
-
-class DateRangeForm(forms.Form):
-    start_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    end_date = forms.DateField(required=False, widget=forms.TextInput(attrs={'type': 'date'}))
-    date_range = forms.ChoiceField(
-        choices=[
-            ('today', 'Today'),
-            ('yesterday', 'Yesterday'),
-            ('this_week', 'This Week'),
-            ('last_week', 'Last Week'),
-            ('this_month', 'This Month'),
-            ('last_month', 'Last Month'),
-            ('custom', 'Custom'),
-        ]
-    )
-    include_contra = forms.BooleanField(required=False, initial=False, label='Include Contra Transactions')
 
 
 ###############################################################################################################
@@ -1249,45 +1203,116 @@ from .forms import ContraForm
 from .models import Contra, Balance
 from django.utils import timezone
 
-@login_required
+
+from django.shortcuts import render, redirect
+from .forms import ContraForm
+from .models import Balance
+
+from django.shortcuts import render, redirect
+from django.utils import timezone
+from .forms import ContraForm
+from .models import Balance
+
 def create_contra(request):
     if request.method == 'POST':
         form = ContraForm(request.POST)
         if form.is_valid():
             contra = form.save(commit=False)
             contra.performed_by = request.user
-            contra.date = timezone.now()  # Set the current date and time
+            contra.date = form.cleaned_data['date']
             
-            # Fetch current balances
+            # Fetch current balances for the contra transaction date
             balances = fetch_balances(contra.date, contra.date)
-            
+
             if contra.contra_type == 'withdraw':
                 if contra.amount <= balances['closing_balance_bank']:
-                    balances['closing_balance_bank'] -= contra.amount
-                    balances['closing_balance_cash'] += contra.amount
+                    # Update balances for bank withdrawal and cash receipt
+                    balances['closing_balance_bank'] -= contra.amount  # Deduct from bank balance
+                    balances['total_receipts_cash'] += contra.amount  # Add to cash receipts
                 else:
                     return render(request, 'create_contra.html', {'form': form, 'error': 'Insufficient bank balance.'})
+
             elif contra.contra_type == 'deposit':
                 if contra.amount <= balances['closing_balance_cash']:
-                    balances['closing_balance_cash'] -= contra.amount
-                    balances['closing_balance_bank'] += contra.amount
+                    # Update balances for cash deposit and bank receipt
+                    balances['closing_balance_cash'] -= contra.amount  # Deduct from cash balance
+                    balances['total_receipts_bank'] += contra.amount  # Add to bank receipts
                 else:
                     return render(request, 'create_contra.html', {'form': form, 'error': 'Insufficient cash balance.'})
-            else:
-                return render(request, 'create_contra.html', {'form': form, 'error': 'Invalid contra type.'})
 
             # Update the balance records
-            balance, created = Balance.objects.get_or_create()  # Ensure there's a Balance record
-            balance.cash_balance = balances['closing_balance_cash']
-            balance.non_cash_balance = balances['closing_balance_bank']
+            balance, created = Balance.objects.get_or_create()
+            balance.cash_balance = balances['closing_balance_cash']  # Update closing cash balance
+            balance.non_cash_balance = balances['closing_balance_bank']  # Update closing bank balance
+            balance.total_receipts_cash = balances['total_receipts_cash']  # Update total cash receipts
+            balance.total_receipts_bank = balances['total_receipts_bank']  # Update total bank receipts
             balance.save()
 
             contra.save()
             return redirect('list_contra')
-
     else:
         form = ContraForm()
-    return render(request, 'create_contra.html', {'form': form})
+
+    context = {
+        'form': form,
+        'today': timezone.now().date()
+    }
+    return render(request, 'create_contra.html', context)
+
+
+def delete_contra(request, contra_no):
+    contra = get_object_or_404(Contra, pk=contra_no)
+    if request.method == 'POST':
+        # Fetch balances before reversing the contra transaction
+        balances = fetch_balances(contra.date, contra.date)
+        
+        if contra.contra_type == 'withdraw':
+            # Revert the changes made by the withdrawal contra
+            balances['closing_balance_bank'] += contra.amount  # Restore bank balance
+            balances['total_receipts_cash'] -= contra.amount  # Revert cash receipts
+        elif contra.contra_type == 'deposit':
+            # Revert the changes made by the deposit contra
+            balances['closing_balance_cash'] += contra.amount  # Restore cash balance
+            balances['total_receipts_bank'] -= contra.amount  # Revert bank receipts
+
+        # Update the balance records
+        balance, created = Balance.objects.get_or_create()
+        balance.cash_balance = balances['closing_balance_cash']  # Update closing cash balance
+        balance.non_cash_balance = balances['closing_balance_bank']  # Update closing bank balance
+        balance.save()
+
+        # Delete the contra entry
+        contra.delete()
+        return redirect('list_contra')
+
+    return render(request, 'delete_contra.html', {'contra': contra})
+
+
+def fetch_balances(start_date, end_date):
+    """
+    Fetches the balances based on the most recent Balance record.
+    Returns a dictionary with cash and bank balances, along with total receipts.
+    """
+    balance = Balance.objects.first()  # Get the first balance record (most recent)
+    
+    if balance:
+        return {
+            'closing_balance_cash': balance.cash_balance,
+            'closing_balance_bank': balance.non_cash_balance,
+            'total_receipts_cash': balance.total_receipts_cash,
+            'total_receipts_bank': balance.total_receipts_bank,
+        }
+    else:
+        # Default balances when no records exist
+        return {
+            'closing_balance_cash': 0,
+            'closing_balance_bank': 0,
+            'total_receipts_cash': 0,
+            'total_receipts_bank': 0,
+        }
+
+
+
 
 from .forms import ContraFilterForm
 
@@ -1326,42 +1351,8 @@ def list_contra(request):
     return render(request, 'list_contra.html', context)
 
 
-@login_required
-def delete_contra(request, contra_no):
-    contra = get_object_or_404(Contra, pk=contra_no)
-    if request.method == 'POST':
-        # Handle the balance adjustments if necessary
-        balances = fetch_balances(contra.date, contra.date)
-        
-        if contra.contra_type == 'withdraw':
-            balances['closing_balance_bank'] += contra.amount
-            balances['closing_balance_cash'] -= contra.amount
-        elif contra.contra_type == 'deposit':
-            balances['closing_balance_cash'] += contra.amount
-            balances['closing_balance_bank'] -= contra.amount
-        
-        # Update the balance records
-        balance, created = Balance.objects.get_or_create()
-        balance.cash_balance = balances['closing_balance_cash']
-        balance.non_cash_balance = balances['closing_balance_bank']
-        balance.save()
-        
-        contra.delete()
-        return redirect('list_contra')
-    
-    return render(request, 'delete_contra.html', {'contra': contra})
-def fetch_balances(start_date, end_date):
-    balance = Balance.objects.first()  # Get the most recent balance record
-    if balance:
-        return {
-            'closing_balance_cash': balance.cash_balance,
-            'closing_balance_bank': balance.non_cash_balance
-        }
-    else:
-        return {
-            'closing_balance_cash': 0,
-            'closing_balance_bank': 0
-        }
+
+
 
 import pandas as pd
 from django.http import HttpResponse
@@ -1448,6 +1439,7 @@ from django.contrib import messages
 import pandas as pd
 from .forms import UploadExcelForm
 from .models import Receipt
+import pandas as pd
 
 def upload_receipt_from_excel(request):
     if request.method == 'POST':
@@ -1455,7 +1447,7 @@ def upload_receipt_from_excel(request):
         if form.is_valid():
             excel_file = request.FILES['excel_file']
             df = pd.read_excel(excel_file)
-            
+
             success_count = 0
             fail_count = 0
             failed_rows = []
@@ -1464,12 +1456,19 @@ def upload_receipt_from_excel(request):
 
             for index, row in df.iterrows():
                 try:
-                    receipt_date = pd.to_datetime(row.get('Receipt Date'), errors='coerce')
+                    # Parse Receipt Date, support multiple formats
+                    receipt_date_str = row.get('Receipt Date')
+                    try:
+                        receipt_date = pd.to_datetime(receipt_date_str, format='%d %b %Y', errors='raise')
+                    except (ValueError, TypeError):
+                        receipt_date = pd.to_datetime(receipt_date_str, format='%d/%m/%Y', errors='coerce')
+
                     mode_of_payment = row.get('Mode of Payment')
                     type_of_receipt = row.get('Type of Receipt')
                     amount = row.get('Amount')
 
-                    missing_fields = []
+                    # Track missing fields
+                    missing_fields = []   
                     if pd.isnull(type_of_receipt):
                         missing_fields.append('Type of Receipt')
                     if pd.isnull(amount):
@@ -1477,28 +1476,30 @@ def upload_receipt_from_excel(request):
                     if pd.isnull(receipt_date):
                         missing_fields.append('Receipt Date')
 
-                    if mode_of_payment == 'Cash':
-                        if pd.isnull(row.get('Manual Book No')):
-                            missing_fields.append('Manual Book No')
-                        if pd.isnull(row.get('Manual Receipt No')):
-                            missing_fields.append('Manual Receipt No')
+                    # Manual Book No and Manual Receipt No are required for all transactions
+                    if pd.isnull(row.get('Manual Book No')):
+                        missing_fields.append('Manual Book No')
+                    if pd.isnull(row.get('Manual Receipt No')):
+                        missing_fields.append('Manual Receipt No')
 
+                    # If mode of payment is Cheque, check for Cheque Number
                     if mode_of_payment == 'Cheque' and pd.isnull(row.get('Cheque Number')):
                         missing_fields.append('Cheque Number')
                     
-                    if mode_of_payment != 'Cash' and pd.isnull(row.get('Manual Receipt No')):
-                        manual_receipt_no = Receipt.get_next_receipt_number(mode_of_payment)
-                    else:
-                        manual_receipt_no = row.get('Manual Receipt No')
+                    # Get Manual Receipt No; if missing, raise an error
+                    manual_receipt_no = row.get('Manual Receipt No')
 
+                    # If any required field is missing, raise an error
                     if missing_fields:
                         raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
+                    # Optional fields handling
                     transaction_id = row.get('Transaction ID') if not pd.isnull(row.get('Transaction ID')) else None
                     cheque_number = row.get('Cheque Number') if not pd.isnull(row.get('Cheque Number')) else None
 
+                    # Create and save the Receipt object
                     receipt = Receipt(
-                        manual_book_no=row.get('Manual Book No') if mode_of_payment == 'Cash' else None,
+                        manual_book_no=row.get('Manual Book No'),
                         manual_receipt_no=manual_receipt_no,
                         name=row.get('Name'),
                         phone=row.get('Phone'),
@@ -1512,16 +1513,18 @@ def upload_receipt_from_excel(request):
                     )
                     receipt.save()
                     success_count += 1
+
                 except Exception as e:
+                    # Collect details for failed rows
                     fail_count += 1
-                    failed_rows.append(index)
+                    failed_rows.append(index + 1)
                     failed_reasons.append(f"Row {index + 1}: {str(e)}")
                 
-                # Update progress bar (assuming an AJAX call to update progress on the client side)
+                # Update progress bar for client-side updates (if AJAX or session tracking is used)
                 progress = (index + 1) / total_rows * 100
                 request.session['upload_progress'] = progress
 
-            # Prepare upload report
+            # Prepare upload report to display after processing
             report = f"Upload Summary:\n\n"
             report += f"Total Rows Processed: {total_rows}\n"
             report += f"Successful Uploads: {success_count}\n"
@@ -1530,24 +1533,34 @@ def upload_receipt_from_excel(request):
             for reason in failed_reasons:
                 report += reason + '\n'
 
-            # Store report in session
+            # Store report in session for later display
             request.session['upload_report'] = report
 
             # Display success and error messages
             messages.success(request, f'Successfully uploaded {success_count} receipts.')
             if fail_count > 0:
-                messages.error(request, f'Failed to upload {fail_count} receipts.')
+                messages.error(request, f'Failed to upload {fail_count} receipts. Check the report for details.')
 
+            # Redirect to the success page to show the report and progress
             return redirect('upload_receipt_success')
+
     else:
         form = UploadExcelForm()
+
     return render(request, 'upload_receipt_from_excel.html', {'form': form})
 
+
+
 def upload_progress(request):
-    return render(request, 'upload_progress.html')
+    """Returns the upload progress."""
+    progress = request.session.get('upload_progress', 0)
+    return render(request, 'upload_progress.html', {'progress': progress})
+
 
 def upload_receipt_success(request):
-    return render(request, 'upload_receipt_success.html')
+    """Displays the summary report of the upload."""
+    report = request.session.get('upload_report', '')
+    return render(request, 'upload_receipt_success.html', {'report': report})
 
 ###############################################################################################################################
 
@@ -1583,7 +1596,21 @@ def upload_vouchers_from_excel(request):
             for index, row in df.iterrows():
                 try:
                     # Extract and clean data
-                    voucher_date = pd.to_datetime(row.get('Date'), errors='coerce')
+                    # Handle multiple date formats
+                    try:
+                        # First try with 'dd/mm/yyyy' format
+                        voucher_date = pd.to_datetime(row.get('Date'), format='%d/%m/%Y', errors='raise')
+                    except Exception:
+                        try:
+                            # Then try with 'dd-mm-yyyy' format
+                            voucher_date = pd.to_datetime(row.get('Date'), format='%d-%m-%Y', errors='raise')
+                        except Exception:
+                            try:
+                                # Then try with 'dd Mon yyyy' format (e.g., '21 Mar 2024')
+                                voucher_date = pd.to_datetime(row.get('Date'), format='%d %b %Y', errors='raise')
+                            except Exception as date_error:
+                                raise ValueError(f"Invalid date format in row {index + 1}: {date_error}")
+
                     mode_of_payment = row.get('Mode Of Payment')
                     transaction_id = row.get('Transaction ID') if not pd.isnull(row.get('Transaction ID')) else None
                     amount = row.get('Amount')
@@ -1684,7 +1711,6 @@ def upload_vouchers_from_excel(request):
     else:
         form = ExcelUploadForm()
     return render(request, 'upload_vouchers_from_excel.html', {'form': form})
-
 
 
 

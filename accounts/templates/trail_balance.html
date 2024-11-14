@@ -4,13 +4,16 @@
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="mb-4">Trail Balance</h1>
+    <h1 class="mb-4">Trial Balance</h1>
+    
+    <!-- Display the date range and totals -->
     <div class="mb-4">
         <p><strong>Date Range:</strong> {{ start_date }} to {{ end_date }}</p>
         <p><strong>Total Receipts:</strong> {{ total_receipts }}</p>
         <p><strong>Total Vouchers:</strong> {{ total_vouchers }}</p>
     </div>
 
+    <!-- Receipts Table -->
     <div class="card mb-4">
         <div class="card-header">
             <h2 class="h4 mb-0">Receipts</h2>
@@ -20,7 +23,7 @@
                 <thead class="thead-dark">
                     <tr>
                         <th>Type of Receipt</th>
-                        <th>Total Amount</th>
+                        <th class="text-right">Total Amount</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -35,7 +38,8 @@
         </div>
     </div>
 
-    <div class="card">
+    <!-- Vouchers Table -->
+    <div class="card mb-4">
         <div class="card-header">
             <h2 class="h4 mb-0">Vouchers</h2>
         </div>
@@ -44,13 +48,13 @@
                 <thead class="thead-dark">
                     <tr>
                         <th>Head of Account</th>
-                        <th>Total Amount</th>
+                        <th class="text-right">Total Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for group in voucher_groups %}
                         <tr>
-                            <td>{{ group.head_of_account }}</td>
+                            <td>{{ group.head_of_account__name }}</td> <!-- Updated field reference -->
                             <td class="text-right">{{ group.total_amount|floatformat:2 }}</td>
                         </tr>
                     {% endfor %}

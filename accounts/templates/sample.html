@@ -1,0 +1,239 @@
+from datetime import datetime, timedelta
+from django.db.models import Sum
+from django.utils import timezone
+from django.shortcuts import render
+
+
+from datetime import datetime, timedelta
+from django.db.models import Sum
+from django.utils import timezone
+from django.shortcuts import render
+from .models import Receipt, Voucher, Contra
+
+def day_book(request):
+    # Date range filter
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    # Default to today if no date range is provided
+    if not start_date or not end_date:
+        today = timezone.now().date()
+        start_date = today
+        end_date = today
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    # Calculate Previous Day for Opening Balance
+    previous_day = start_date - timedelta(days=1)
+
+    # Calculate opening balance as of the previous day
+    total_cash_receipts = Receipt.objects.filter(
+        mode_of_payment__iexact='cash',
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_bank_receipts = Receipt.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_cash_payments = Voucher.objects.filter(
+        mode_of_payment__iexact='cash',
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_bank_payments = Voucher.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Adjusted contra transactions calculation
+    contra_deposit = Contra.objects.filter(
+        contra_type='deposit',
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    contra_withdraw = Contra.objects.filter(
+        contra_type='withdraw',
+        
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate Opening Balances
+    opening_cash_balance = total_cash_receipts - total_cash_payments + contra_withdraw - contra_deposit
+    opening_bank_balance = total_bank_receipts - total_bank_payments + contra_deposit - contra_withdraw
+    opening_total_balance = opening_cash_balance + opening_bank_balance
+
+    # Calculate Receipts and Payments within the date range
+    receipts = Receipt.objects.filter(receipt_date__range=(start_date, end_date))
+    vouchers = Voucher.objects.filter(voucher_date__range=(start_date, end_date))
+
+    # Calculate totals for receipts and vouchers
+    total_cash_receipts = receipts.filter(mode_of_payment__iexact='cash').aggregate(total=Sum('amount'))['total'] or 0
+    total_bank_receipts = receipts.filter(mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque']).aggregate(total=Sum('amount'))['total'] or 0
+    total_cash_payments = vouchers.filter(mode_of_payment__iexact='cash').aggregate(total=Sum('amount'))['total'] or 0
+    total_bank_payments = vouchers.filter(mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque']).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Group Receipts and Vouchers by type of receipt and head of account
+    receipt_groups = receipts.values('type_of_receipt').annotate(total_amount=Sum('amount'))
+    voucher_groups = vouchers.values('head_of_account__name').annotate(total_amount=Sum('amount'))
+
+    adjusted_cash_balance = opening_cash_balance + cash_receipts - cash_payments - contra_deposit + contra_withdraw
+    adjusted_bank_balance = opening_bank_balance + bank_receipts - bank_payments + contra_deposit - contra_withdraw
+    adjusted_total_balance = adjusted_cash_balance + adjusted_bank_balance
+
+    # Closing balances
+    closing_cash_balance = adjusted_cash_balance
+    closing_bank_balance = adjusted_bank_balance
+    closing_total_balance = adjusted_total_balance
+
+    # Pass all values to the template
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'opening_cash_balance': opening_cash_balance,
+        'opening_bank_balance': opening_bank_balance,
+        'opening_total_balance': opening_total_balance,
+        'cash_receipts': total_cash_receipts,
+        'bank_receipts': total_bank_receipts,
+        'cash_payments': total_cash_payments,
+        'bank_payments': total_bank_payments,
+        'contra_deposit': contra_deposit,
+        'contra_withdraw': contra_withdraw,
+        'closing_cash_balance': closing_cash_balance,
+        'closing_bank_balance': closing_bank_balance,
+        'closing_total_balance': closing_total_balance,
+        'receipt_groups': receipt_groups,
+        'voucher_groups': voucher_groups,
+    }
+
+    return render(request, 'day_book.html', context)
+
+##############################################################################################################################
+
+from datetime import datetime, timedelta
+from django.db.models import Sum
+from django.utils import timezone
+from django.shortcuts import render
+from .models import Receipt, Voucher, Contra
+def day_book(request):
+
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    # Default to today if no date range is provided
+    if not start_date or not end_date:
+        today = timezone.now().date()
+        start_date = today
+        end_date = today
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+    # Calculate Previous Day for Opening Balance
+    previous_day = start_date - timedelta(days=1)
+
+    # Calculate opening balance as of the previous day
+    total_cash_receipts = Receipt.objects.filter(
+        mode_of_payment__iexact='cash',
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_bank_receipts = Receipt.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        receipt_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_cash_payments = Voucher.objects.filter(
+        mode_of_payment__iexact='cash',
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    total_bank_payments = Voucher.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque', 'bank_transfer', 'cheque'],
+        voucher_date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Adjusted contra transactions calculation
+    contra_deposit = Contra.objects.filter(
+        contra_type='deposit',
+        date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    contra_withdraw = Contra.objects.filter(
+        contra_type='withdraw',
+        date__lte=previous_day
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+
+
+    # Calculate Opening Balances
+    opening_cash_balance = total_cash_receipts - total_cash_payments - contra_deposit + contra_withdraw
+    opening_bank_balance = total_bank_receipts - total_bank_payments + contra_deposit - contra_withdraw
+
+    # Calculate Opening Total Balance
+    opening_total_balance = opening_cash_balance + opening_bank_balance
+
+    # Calculate Receipts and Payments within the date range
+    cash_receipts = Receipt.objects.filter(
+        mode_of_payment='Cash',
+        receipt_date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Bank receipts include other payment methods
+    bank_receipts = Receipt.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque'],
+        receipt_date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    cash_payments = Voucher.objects.filter(
+        mode_of_payment='Cash',
+        voucher_date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Bank payments include other payment methods
+    bank_payments = Voucher.objects.filter(
+        mode_of_payment__in=['UPI', 'Bank Transfer', 'Cheque'],
+        voucher_date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Calculate Contras within the date range
+    contra_deposit = Contra.objects.filter(
+        contra_type='deposit',
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    contra_withdraw = Contra.objects.filter(
+        contra_type='withdraw',
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+
+    # Adjust balances based on contra transactions
+    adjusted_cash_balance = opening_cash_balance + cash_receipts - cash_payments - contra_deposit + contra_withdraw
+    adjusted_bank_balance = opening_bank_balance + bank_receipts - bank_payments + contra_deposit - contra_withdraw
+    adjusted_total_balance = adjusted_cash_balance + adjusted_bank_balance
+
+    # Closing balances
+    closing_cash_balance = adjusted_cash_balance
+    closing_bank_balance = adjusted_bank_balance
+    closing_total_balance = adjusted_total_balance
+
+    # Pass all values to the template
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'opening_cash_balance': opening_cash_balance,
+        'cash_receipts': cash_receipts,
+        'cash_payments': cash_payments,
+        'closing_cash_balance': closing_cash_balance,
+        'opening_bank_balance': opening_bank_balance,
+        'bank_receipts': bank_receipts,
+        'bank_payments': bank_payments,
+        'closing_bank_balance': closing_bank_balance,
+        'contra_deposit': contra_deposit,
+        'contra_withdraw': contra_withdraw,
+        'opening_total_balance': opening_total_balance,
+        'closing_total_balance': closing_total_balance,
+    }
+    return render(request, 'day_book.html', context)

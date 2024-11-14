@@ -17,7 +17,7 @@
 
     <form method="post" action="">
         {% csrf_token %}
-        
+
         <!-- Mode of Payment -->
         <div class="form-group">
             <label for="id_mode_of_payment">Mode of Payment:</label>
@@ -31,8 +31,8 @@
             {% endif %}
         </div>
 
-        <!-- Manual Book No -->
-        <div class="form-group" id="manual_book_no_group">
+        <!-- Manual Book No (Always visible and required) -->
+        <div class="form-group">
             <label for="id_manual_book_no">Manual Book No:</label>
             {{ form.manual_book_no }}
             {% if form.manual_book_no.errors %}
@@ -43,9 +43,9 @@
                 </div>
             {% endif %}
         </div>
-        
-        <!-- Manual Receipt No -->
-        <div class="form-group" id="manual_receipt_no_group">
+
+        <!-- Manual Receipt No (Always visible and required) -->
+        <div class="form-group">
             <label for="id_manual_receipt_no">Manual Receipt No:</label>
             {{ form.manual_receipt_no }}
             {% if form.manual_receipt_no.errors %}
@@ -69,7 +69,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Phone -->
         <div class="form-group">
             <label for="id_phone">Phone:</label>
@@ -82,7 +82,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Address -->
         <div class="form-group">
             <label for="id_address">Address:</label>
@@ -95,7 +95,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Type of Receipt -->
         <div class="form-group">
             <label for="id_type_of_receipt">Type of Receipt:</label>
@@ -108,7 +108,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Amount -->
         <div class="form-group">
             <label for="id_amount">Amount:</label>
@@ -121,7 +121,7 @@
                 </div>
             {% endif %}
         </div>
-        
+
         <!-- Receipt Date -->
         <div class="form-group">
             <label for="id_receipt_date">Receipt Date:</label>
@@ -134,9 +134,9 @@
                 </div>
             {% endif %}
         </div>
-        
-        <!-- Transaction ID -->
-        <div class="form-group" id="transaction_id_group">
+
+        <!-- Transaction ID (Visible only for UPI and Bank Transfer) -->
+        <div class="form-group" id="transaction_id_group" style="display:none;">
             <label for="id_transaction_id">Transaction ID:</label>
             {{ form.transaction_id }}
             {% if form.transaction_id.errors %}
@@ -147,9 +147,9 @@
                 </div>
             {% endif %}
         </div>
-        
-        <!-- Cheque Number -->
-        <div class="form-group" id="cheque_number_group">
+
+        <!-- Cheque Number (Visible only for Cheque payment) -->
+        <div class="form-group" id="cheque_number_group" style="display:none;">
             <label for="id_cheque_number">Cheque Number:</label>
             {{ form.cheque_number }}
             {% if form.cheque_number.errors %}
@@ -171,28 +171,14 @@ $(document).ready(function() {
     function updateFields() {
         var mode = $('#id_mode_of_payment').val();
         if (mode == 'Cash') {
-            $('#manual_book_no_group').show();
-            $('#manual_receipt_no_group').show();
             $('#transaction_id_group').hide();
             $('#cheque_number_group').hide();
-            $('#id_manual_receipt_no').prop('disabled', false);
         } else if (mode == 'UPI' || mode == 'Bank Transfer') {
-            $('#manual_book_no_group').hide();
-            $('#manual_receipt_no_group').show();
             $('#transaction_id_group').show();
             $('#cheque_number_group').hide();
-            $('#id_manual_receipt_no').prop('disabled', true);
         } else if (mode == 'Cheque') {
-            $('#manual_book_no_group').hide();
-            $('#manual_receipt_no_group').show();
             $('#transaction_id_group').hide();
             $('#cheque_number_group').show();
-            $('#id_manual_receipt_no').prop('disabled', true);
-        } else {
-            $('#manual_book_no_group').hide();
-            $('#manual_receipt_no_group').hide();
-            $('#transaction_id_group').hide();
-            $('#cheque_number_group').hide();
         }
     }
 

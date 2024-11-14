@@ -4,11 +4,7 @@ import datetime
 from django import forms
 from .models import Receipt
 
-from django import forms
-from .models import Receipt
 
-from django import forms
-from .models import Receipt
 
 class ReceiptForm(forms.ModelForm):
     class Meta:
@@ -20,21 +16,25 @@ class ReceiptForm(forms.ModelForm):
         ]
 
     def __init__(self, *args, **kwargs):
-        mode_of_payment = kwargs.pop('initial', {}).get('mode_of_payment', 'Cash')
         super().__init__(*args, **kwargs)
-        if mode_of_payment in ['UPI', 'Bank Transfer', 'Cheque']:
-            self.fields['manual_receipt_no'].widget.attrs['readonly'] = True
-        else:
-            self.fields['manual_receipt_no'].widget.attrs['readonly'] = False
+        # Set manual_receipt_no to editable for all payment modes
+        self.fields['manual_receipt_no'].widget.attrs['readonly'] = False
 
     def clean(self):
         cleaned_data = super().clean()
         mode_of_payment = cleaned_data.get('mode_of_payment')
         
-        # Validation for all receipts
+        # Validation for manual_book_no and manual_receipt_no for all types of payments
         manual_book_no = cleaned_data.get('manual_book_no')
         manual_receipt_no = cleaned_data.get('manual_receipt_no')
         
+        if not manual_book_no:
+            self.add_error('manual_book_no', 'Manual Book Number is required for all payment types.')
+        
+        if not manual_receipt_no:
+            self.add_error('manual_receipt_no', 'Manual Receipt Number is required for all payment types.')
+        
+        # Check if the combination of manual_book_no and manual_receipt_no already exists
         if manual_book_no and manual_receipt_no:
             if Receipt.objects.filter(manual_book_no=manual_book_no, manual_receipt_no=manual_receipt_no).exists():
                 self.add_error('manual_receipt_no', 'This combination of Manual Book Number and Manual Receipt Number already exists.')
@@ -61,16 +61,6 @@ from .models import Receipt, Voucher
 from django import forms
 from .models import Voucher
 
-from django import forms
-from django.utils import timezone
-
-from django import forms
-from django.utils import timezone
-
-from django import forms
-from django.utils import timezone
-from .models import Voucher
-
 class VoucherForm(forms.ModelForm):
     class Meta:
         model = Voucher
@@ -83,25 +73,15 @@ class VoucherForm(forms.ModelForm):
             'voucher_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control', 'readonly': 'readonly'}),
         }
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.instance.pk:  # Set default date only when creating a new instance
-            self.fields['voucher_date'].initial = timezone.now().date()
-        self.fields['voucher_date'].widget.attrs['value'] = self.fields['voucher_date'].initial
-        self.fields['mode_of_payment'].initial = 'cash'  # Default to Cash
-
     def clean(self):
         cleaned_data = super().clean()
-        mode_of_payment = cleaned_data.get('mode_of_payment')
-        transaction_id = cleaned_data.get('transaction_id')
+        voucher_type = cleaned_data.get('voucher_type')
+        financial_year = cleaned_data.get('financial_year')
+        sequence_number = cleaned_data.get('sequence_number')
 
-        if mode_of_payment in ['bank_transfer', 'cheque']:
-            if not transaction_id:
-                self.add_error('transaction_id', 'Transaction ID is required for Bank Transfer and Cheque payments.')
-            else:
-                # Ensure transaction_id is unique for the given mode_of_payment
-                if Voucher.objects.filter(mode_of_payment=mode_of_payment, transaction_id=transaction_id).exists():
-                    self.add_error('transaction_id', 'Transaction ID must be unique for Bank Transfer and Cheque payments.')
+        # Ensure the combination is unique
+        if Voucher.objects.filter(voucher_type=voucher_type, financial_year=financial_year, sequence_number=sequence_number).exists():
+            raise forms.ValidationError('The combination of Voucher Type, Financial Year, and Sequence Number must be unique.')
 
         return cleaned_data
 
@@ -176,11 +156,20 @@ class DateRangeForm(forms.Form):
 from django import forms
 from .models import Contra
 
+from django import forms
+from .models import Contra  # Ensure Contra is correctly imported if needed
+
 class ContraForm(forms.ModelForm):
     class Meta:
         model = Contra
-        fields = ['amount', 'contra_type']
-# accounts/forms.py
+        fields = ['contra_no', 'amount', 'contra_type', 'date']  # Include contra_no in fields
+
+    def clean_contra_no(self):
+        contra_no = self.cleaned_data.get('contra_no')
+        if Contra.objects.filter(contra_no=contra_no).exists():
+            raise forms.ValidationError("This contra number already exists. Please choose a different one.")
+        return contra_no
+
 from django import forms
 from .models import Contra  # Ensure Contra is correctly imported if needed
 

@@ -1,118 +1,118 @@
-{% extends "base.html" %}
-{% load static %}
-{% load i18n %}
+{% load custom_filters %}
 
-{% block content %}
-<h2>Day Book</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Day Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h2, h3 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: right;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        label {
+            margin-right: 10px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Day Book</h2>
 
-<form method="post" class="form-inline mb-4">
-    {% csrf_token %}
-    <div class="form-group mr-2">
-        {{ form.start_date.label_tag }} {{ form.start_date }}
-    </div>
-    <div class="form-group mr-2">
-        {{ form.end_date.label_tag }} {{ form.end_date }}
-    </div>
-    <div class="form-group mr-2">
-        {{ form.date_range.label_tag }} {{ form.date_range }}
-    </div>
-    <div class="form-group mr-2">
-        {{ form.include_contra }}
-        {{ form.include_contra.label_tag }}
-    </div>
-    <button type="submit" class="btn btn-primary">Apply</button>
-</form>
+    <form method="get" action=".">
+        <div class="form-group">
+            <label for="start_date">Start Date:</label>
+            <input type="date" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="end_date">End Date:</label>
+            <input type="date" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" required>
+        </div>
+        
+        <button type="submit">Apply</button>
+    </form>
 
-<div class="day-book-section">
-    <h3>Cash</h3>
-    <div class="balance-box">
-        <div class="balance-item">
-            <span>Opening</span>
-            <span>{{ opening_balance_cash|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Receipts</span>
-            <span>{{ total_receipts_cash|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Payments</span>
-            <span>{{ total_payments_cash|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Closing</span>
-            <span>{{ closing_balance_cash|floatformat:2 }}</span>
-        </div>
-    </div>
-</div>
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
 
-<div class="day-book-section">
-    <h3>Bank</h3>
-    <div class="balance-box">
-        <div class="balance-item">
-            <span>Opening</span>
-            <span>{{ opening_balance_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Receipts</span>
-            <span>{{ total_receipts_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Payments</span>
-            <span>{{ total_payments_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Closing</span>
-            <span>{{ closing_balance_bank|floatformat:2 }}</span>
-        </div>
-    </div>
-</div>
+    <h3>Cash Balances</h3>
+    <table>
+        <tr>
+            <th>Opening</th>
+            <th>Receipts</th>
+            <th>Payments</th>
+            <th>Contra (Deposit)</th>
+            <th>Contra (Withdraw)</th>
+            <th>Closing</th>
+        </tr>
+        <tr>
+            <td>{{ opening_cash_balance|floatformat:2 }}</td>
+            <td>{{ cash_receipts|floatformat:2 }}</td>
+            <td>{{ cash_payments|floatformat:2 }}</td>
+            <td>-{{ contra_deposit|floatformat:2 }}</td>
+            <td>+{{ contra_withdraw|floatformat:2 }}</td>
+            <td>{{ closing_cash_balance|floatformat:2 }}</td>
+        </tr>
+    </table>
 
-<div class="day-book-section">
-    <h3>Total</h3>
-    <div class="balance-box total-box">
-        <div class="balance-item">
-            <span>Opening</span>
-            <span>{{ opening_balance_cash|add:opening_balance_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Receipts</span>
-            <span>{{ total_receipts_cash|add:total_receipts_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Payments</span>
-            <span>{{ total_payments_cash|add:total_payments_bank|floatformat:2 }}</span>
-        </div>
-        <div class="balance-item">
-            <span>Closing</span>
-            <span>{{ closing_balance_cash|add:closing_balance_bank|floatformat:2 }}</span>
-        </div>
-    </div>
-</div>
+    <h3>Bank Balances</h3>
+    <table>
+        <tr>
+            <th>Opening</th>
+            <th>Receipts</th>
+            <th>Payments</th>
+            <th>Contra (Deposit)</th>
+            <th>Contra (Withdraw)</th>
+            <th>Closing</th>
+        </tr>
+        <tr>
+            <td>{{ opening_bank_balance|floatformat:2 }}</td>
+            <td>{{ bank_receipts|floatformat:2 }}</td>
+            <td>{{ bank_payments|floatformat:2 }}</td>
+            <td>+{{ contra_deposit|floatformat:2 }}</td>
+            <td>-{{ contra_withdraw|floatformat:2 }}</td>
+            <td>{{ closing_bank_balance|floatformat:2 }}</td>
+        </tr>
+    </table>
 
-<style>
-    .day-book-section {
-        margin-top: 30px;
-    }
-    .balance-box {
-        display: flex;
-        justify-content: space-between;
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    .balance-item {
-        flex: 1;
-        text-align: center;
-        margin: 0 10px;
-    }
-    .balance-item span {
-        display: block;
-        font-size: 1.2em;
-    }
-    .total-box {
-        background-color: #e9ecef;
-    }
-</style>
-
-{% endblock %}
+    <h3>Total Balances</h3>
+    <table>
+        <tr>
+            <th>Opening</th>
+            <th>Receipts</th>
+            <th>Payments</th>
+            <th>Contra Adjustments</th>
+            <th>Closing</th>
+        </tr>
+        <tr class="total-row">
+            <td>{{ opening_total_balance|floatformat:2 }}</td>
+            <td>{{ cash_receipts|add:bank_receipts|floatformat:2 }}</td>
+            <td>{{ cash_payments|add:bank_payments|floatformat:2 }}</td>
+            <td>{{ contra_deposit|add:contra_withdraw|floatformat:2 }}</td>
+            <td>{{ closing_total_balance|floatformat:2 }}</td>
+        </tr>
+    </table>
+</body>
+</html>
