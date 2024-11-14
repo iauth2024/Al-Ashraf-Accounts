@@ -14,8 +14,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-default-secret-key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = [
-    'al-ashraf-accounts-1.onrender.com']
+ALLOWED_HOSTS = ['al-ashraf-accounts.onrender.com']
 
 # Application definition
 INSTALLED_APPS = [
