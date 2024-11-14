@@ -934,7 +934,6 @@ def get_date_range(date_range):
 
 
 @login_required
-@staff_member_required
 def ledger_page_details(request):
     # Instantiate the date form
     date_form = DateRangeForm(request.GET or None)
