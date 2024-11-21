@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Receipt</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f9f9f9;
+        }
+        .scan-container {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+        .scan-container h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        video {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-around;
+        }
+        .buttons button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        .buttons button:hover {
+            background-color: #0056b3;
+        }
+        .feedback {
+            margin-top: 15px;
+            color: green;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="scan-container">
+        <h2>Scan Receipt</h2>
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="buttons">
+            <button id="captureBtn">Capture</button>
+            <button id="scanBtn">Scan</button>
+        </div>
+        <div class="feedback" id="feedbackMessage"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const scanBtn = document.getElementById('scanBtn');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const ctx = canvas.getContext('2d');
+
+        // Start the camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error('Error accessing camera:', err);
+                feedbackMessage.textContent = 'Error accessing the camera. Please allow camera access.';
+            });
+
+        // Capture the image
+        captureBtn.onclick = () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            feedbackMessage.textContent = 'Image captured! Ready to scan.';
+        };
+
+        // Scan the captured image
+        scanBtn.onclick = () => {
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('receipt_image', blob, 'receipt.jpg');
+
+                fetch('/scan-receipt/', {  // Update to the correct URL in your Django app
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        feedbackMessage.textContent = 'Receipt scanned successfully!';
+                        // Flash sound or visual cue
+                        const audio = new Audio('/static/success.mp3'); // Add success sound in static folder
+                        audio.play();
+                    } else {
+                        feedbackMessage.textContent = 'Failed to scan receipt.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    feedbackMessage.textContent = 'Error scanning receipt!';
+                });
+            });
+        };
+    </script>
+</body>
+</html>

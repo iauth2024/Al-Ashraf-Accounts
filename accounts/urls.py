@@ -59,4 +59,5 @@ urlpatterns = [
     path('download-pdf/', download_pdf, name='download_pdf'),
     path('download-contra-excel/', download_contra_excel, name='download_contra_excel'),
     path('download-contra-pdf/', download_contra_pdf, name='download_contra_pdf'),
+    path('scan-receipt/', views.scan_receipt, name='scan_receipt')
 ]

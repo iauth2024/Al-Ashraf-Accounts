@@ -10,7 +10,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
         body {
-            background: #f8f9fa; /* Light gray background */
+            background: #f8f9fa;
             font-family: 'Roboto', sans-serif;
         }
 
@@ -21,35 +21,35 @@
 
         .sidebar {
             width: 220px;
-            background: #343a40; /* Dark sidebar background */
+            background: #343a40;
             color: #fff;
             padding: 20px;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             height: 100%;
             position: fixed;
-            overflow-y: auto; /* Scrollable sidebar */
+            overflow-y: auto;
         }
 
         .sidebar h2 {
             font-family: 'Roboto', sans-serif;
             font-weight: 700;
-            color: #fff; /* White text */
-            margin-bottom: 20px; /* Space below heading */
+            color: #fff;
+            margin-bottom: 20px;
         }
 
         .sidebar a {
-            display: block; /* Each link as a block */
+            display: block;
             padding: 10px 15px;
             margin-bottom: 10px;
-            background: #495057; /* Dark gray background */
+            background: #495057;
             color: #fff;
             text-decoration: none;
             border-radius: 5px;
-            transition: background 0.3s ease; /* Smooth background transition */
+            transition: background 0.3s ease;
         }
 
         .sidebar a:hover {
-            background: #6c757d; /* Darker gray on hover */
+            background: #6c757d;
         }
 
         .sidebar i {
@@ -57,32 +57,32 @@
         }
 
         .main-content {
-            margin-left: 220px; /* Adjust for sidebar width */
+            margin-left: 220px;
             padding: 20px;
-            width: calc(100% - 220px); /* Full width minus sidebar */
+            width: calc(100% - 220px);
         }
 
         .main-content h1 {
             font-family: 'Roboto', sans-serif;
             font-weight: 700;
-            margin-bottom: 20px; /* Space below heading */
+            margin-bottom: 20px;
         }
 
         @media (max-width: 768px) {
             .d-flex {
-                flex-wrap: wrap; /* Stack sidebar and main content on small screens */
+                flex-wrap: wrap;
             }
             
             .sidebar {
-                width: 100%; /* Full width on small screens */
+                width: 100%;
                 position: relative;
-                padding-bottom: 20px; /* Space at the bottom */
+                padding-bottom: 20px;
             }
 
             .main-content {
                 margin-left: 0;
-                width: 100%; /* Full width on small screens */
-                padding-top: 20px; /* Space at the top */
+                width: 100%;
+                padding-top: 20px;
             }
         }
     </style>
@@ -103,8 +103,9 @@
             <a href="{% url 'trail_balance' %}"><i class="fas fa-balance-scale"></i> Trail Balance</a>
             <a href="{% url 'create_contra' %}"><i class="fas fa-exchange-alt"></i> Create Contra</a>
             <a href="{% url 'list_contra' %}"><i class="fas fa-list-alt"></i> List Contra</a>
-            <!-- New "Book Summary" Link -->
             <a href="{% url 'book_summary' %}"><i class="fas fa-book"></i> Book Summary</a>
+            <a href="{% url 'scan_receipt' %}"><i class="fas fa-qrcode"></i> Scan Receipt</a>
+
 
             {% if user.is_authenticated %}
                 {% if perms.accounts.can_approve_vouchers %}
