@@ -1930,7 +1930,7 @@ import re
 from datetime import datetime
 from django.http import JsonResponse
 from PIL import Image
-import pytesseract # type: ignore
+import pytesseract 
 
 def scan_receipt(request):
     if request.method == 'POST' and 'receipt_image' in request.FILES:
