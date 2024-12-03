@@ -38,7 +38,7 @@ class Receipt(models.Model):
     mode_of_payment = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='Cash')
     transaction_id = models.CharField(max_length=15, blank=True, null=True)
     cheque_number = models.CharField(max_length=15, blank=True, null=True)
-    amount = models.PositiveIntegerField(validators=[positive_integer_validator])
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     receipt_date = models.DateField(default=date.today)
 
     class Meta:
