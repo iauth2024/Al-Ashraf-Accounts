@@ -1032,15 +1032,17 @@ from django.db.models import Sum
 from datetime import date
 from .models import Receipt, Voucher
 
+from datetime import date, datetime
+
 def trail_balance(request):
-    # Get the date range from the request, default to the current financial year
+    # Get the date range from the request
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     financial_year = request.GET.get('financial_year')
 
-    # Default to financial year start if no dates provided
+    # Default to the financial year's start if no dates provided
     if not start_date:
-        if financial_year:
+        if financial_year and financial_year.isdigit():
             start_date = f"{financial_year}-04-01"
         else:
             start_date = date.today().replace(day=1, month=4).strftime('%Y-%m-%d')
@@ -1054,32 +1056,35 @@ def trail_balance(request):
         start_date = date.today().replace(day=1, month=4)
         end_date = date.today()
 
-    # Get all Receipts and Vouchers within the date range
+    # Adjust end_date to include the entire day (if using DateTimeField)
+    end_date = datetime.combine(end_date, datetime.max.time())
+    start_date = datetime.combine(start_date, datetime.min.time())
+
+    # Filter Receipts and Vouchers
     receipts = Receipt.objects.filter(receipt_date__range=(start_date, end_date))
     vouchers = Voucher.objects.filter(voucher_date__range=(start_date, end_date))
 
-    # Calculate totals for receipts and vouchers
+    # Calculate totals
     total_receipts = receipts.aggregate(total_amount=Sum('amount'))['total_amount'] or 0
     total_vouchers = vouchers.aggregate(total_amount=Sum('amount'))['total_amount'] or 0
 
-    # Group Receipts and Vouchers by type of receipt and head of account
+    # Group by type or head of account
     receipt_groups = receipts.values('type_of_receipt').annotate(total_amount=Sum('amount'))
-    
-    # Ensure we get the name of the head of account
     voucher_groups = vouchers.values('head_of_account__name').annotate(total_amount=Sum('amount'))
 
-    # Prepare context for the template
+    # Prepare context
     context = {
-        'start_date': start_date,
-        'end_date': end_date,
+        'start_date': start_date.date(),
+        'end_date': end_date.date(),
         'financial_year': financial_year,
         'total_receipts': total_receipts,
         'total_vouchers': total_vouchers,
         'receipt_groups': receipt_groups,
-        'voucher_groups': voucher_groups
+        'voucher_groups': voucher_groups,
     }
 
     return render(request, 'trail_balance.html', context)
+
 
 ################################################################################################################################
 from datetime import datetime, timedelta
