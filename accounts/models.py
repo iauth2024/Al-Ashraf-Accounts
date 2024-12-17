@@ -9,7 +9,34 @@ from num2words import num2words # type: ignore
 def positive_integer_validator(value):
     if value <= 0:
         raise ValidationError('Only positive integers are allowed.')
+# Importing the Group model (assuming it's in the same app)
+from django.db import models
 
+class Group(models.Model):
+    name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.name
+
+
+class SubGroup(models.Model):
+    name = models.CharField(max_length=100)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='subgroups')  # Add ForeignKey to Group
+
+    def __str__(self):
+        return self.name
+
+
+class Ledger(models.Model):
+    name = models.CharField(max_length=100)
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    subgroup = models.ForeignKey(SubGroup, on_delete=models.CASCADE, related_name='ledgers')  # Add ForeignKey to SubGroup
+
+    def __str__(self):
+        return self.name
+
+
+# Receipt model with the ForeignKey to Group
 class Receipt(models.Model):
     PAYMENT_CHOICES = [
         ('Cash', 'Cash'),
@@ -25,8 +52,8 @@ class Receipt(models.Model):
         ('Fidiya', 'Fidiya'),
         ('Tasdeeq-Nama', 'Tasdeeq-Nama'),
         ('Isala-e-Sawab', 'Isala-e-Sawab'),
-        ('Payment Return', 'Payment Return'),  # Added Payment Return
-        ('Salary Return', 'Salary Return'),    # Added Salary Return
+        ('Payment Return', 'Payment Return'),
+        ('Salary Return', 'Salary Return'),
     ]
 
     manual_book_no = models.PositiveIntegerField(blank=True, null=True)
@@ -41,8 +68,17 @@ class Receipt(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     receipt_date = models.DateField(default=date.today)
 
+    # New fields for group, subgroup, and ledger
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, blank=True, null=True)
+    subgroup = models.CharField(max_length=100, default='N/A')
+    ledger = models.CharField(max_length=100, default='N/A')
+
     class Meta:
         unique_together = ('manual_book_no', 'manual_receipt_no')
+
+    def __str__(self):
+        return f"Receipt No: {self.manual_receipt_no}, Amount: {self.amount}"
+
 
 class HeadOfAccount(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -121,7 +157,13 @@ class Voucher(models.Model):
     rejection_reason = models.TextField(blank=True, null=True)
     edited = models.BooleanField(default=False)
     financial_year = models.CharField(max_length=9, default='2024-25')  # Update default as needed
-    sequence_number = models.PositiveIntegerField(default=1)  # Set default to 1
+    sequence_number = models.PositiveIntegerField(default=1)
+
+    # Adding group, subgroup, and ledger fields
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, blank=True, null=True)
+
+    subgroup = models.ForeignKey(SubGroup, on_delete=models.CASCADE, blank=True, null=True)
+    ledger = models.ForeignKey(Ledger, on_delete=models.CASCADE, blank=True, null=True)
 
     class Meta:
         unique_together = ('financial_year', 'sequence_number', 'mode_of_payment')
@@ -134,11 +176,9 @@ class Voucher(models.Model):
             raise ValidationError('Transaction ID is required for Bank Transfer and Cheque payments.')
 
     def save(self, *args, **kwargs):
-        # Convert amount to words if greater than zero
         if self.amount > 0:
             self.amount_in_words = num2words(self.amount)
 
-        # Determine fiscal year (April 1st to March 31st)
         if self.voucher_date.month >= 4:
             fiscal_year_start = datetime.date(self.voucher_date.year, 4, 1)
         else:
@@ -146,18 +186,15 @@ class Voucher(models.Model):
 
         fiscal_year_end = datetime.date(fiscal_year_start.year + 1, 3, 31)
         year_suffix = f"{str(fiscal_year_start.year)[-2:]}-{str(fiscal_year_end.year)[-2:]}"
-        
-        # Update financial year field
+
         self.financial_year = year_suffix
 
-        # Generate the voucher number if this is a new record
-        if not self.pk:  # Only assign a new voucher number if this is a new record
+        if not self.pk:
             if self.mode_of_payment == 'cash':
                 prefix = 'C'
             else:
-                prefix = 'B'  # Use the same prefix for bank_transfer and cheque
+                prefix = 'B'
 
-            # Filter vouchers for the same fiscal year
             if self.mode_of_payment == 'cash':
                 last_voucher = Voucher.objects.filter(
                     financial_year=self.financial_year,
@@ -169,17 +206,16 @@ class Voucher(models.Model):
                     mode_of_payment__in=['bank_transfer', 'cheque']
                 ).order_by('-sequence_number').first()
 
-            # Determine the next sequence number based on the last voucher
             if last_voucher:
                 next_number = last_voucher.sequence_number + 1
             else:
-                next_number = 1  # Start from 1 if no previous voucher exists
+                next_number = 1
 
-            # Assign values for voucher number and sequence number
             self.voucher_no = f"{prefix}/{year_suffix}/{next_number}"
             self.sequence_number = next_number
 
         super().save(*args, **kwargs)
+
 
 
 from django.db import models
