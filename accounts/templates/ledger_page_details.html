@@ -1,62 +1,96 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledger Page Details</title>
+    <!-- Add Bootstrap CSS -->
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .group-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+        .subgroup-title {
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 0.5rem;
+        }
+        .ledger-item {
+            padding-left: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Ledger Page Details</h1>
 
-{% block content %}
-<h2>Ledger Page</h2>
+    <!-- Date Form -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" id="start_date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+        </div>
+        <div class="col-md-4">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" id="end_date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+        </div>
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
 
-<!-- Date Range Filter Form -->
-<form method="get">
-    {{ date_form.as_p }}
-    <button type="submit">Filter</button>
-</form>
-
-<!-- Receipt Summary -->
-<h3>Receipts</h3>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Type of Receipt</th>
-            <th>Number of Receipts</th>
-            <th>Total Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for receipt in receipt_summary %}
-        <tr>
-            <td><a href="{% url 'receipt_detail' receipt.type_of_receipt %}">{{ receipt.type_of_receipt }}</a></td>
-            <td>{{ receipt.count }}</td>
-            <td>{{ receipt.total_amount|floatformat:2 }}</td>
-        </tr>
+    <!-- Group Data -->
+    <div class="accordion" id="groupAccordion">
+        {% for group in group_data %}
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="group-{{ forloop.counter }}">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#group-collapse-{{ forloop.counter }}" aria-expanded="true" aria-controls="group-collapse-{{ forloop.counter }}">
+                    {{ group.group_name }}
+                </button>
+            </h2>
+            <div id="group-collapse-{{ forloop.counter }}" class="accordion-collapse collapse show" aria-labelledby="group-{{ forloop.counter }}">
+                <div class="accordion-body">
+                    {% for subgroup in group.subgroup_data %}
+                    <div class="mb-3">
+                        <h5 class="subgroup-title" data-bs-toggle="collapse" data-bs-target="#subgroup-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">
+                            {{ subgroup.subgroup_name }}
+                        </h5>
+                        <div id="subgroup-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" class="collapse show">
+                            {% for ledger in subgroup.ledger_data %}
+                            <div class="ledger-item">
+                                <span>{{ ledger.ledger_name }}</span>
+                                <span class="float-end text-muted">Balance: ₹{{ ledger.balance }}</span>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted ledger-item">No ledgers found.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No subgroups found.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
         {% empty %}
-        <tr>
-            <td colspan="3">No receipts found.</td>
-        </tr>
+        <p class="text-muted">No groups found.</p>
         {% endfor %}
-    </tbody>
-</table>
+    </div>
+</div>
 
-<!-- Voucher Summary -->
-<h3>Vouchers</h3>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>Head of Account</th>
-            <th>Number of Vouchers</th>
-            <th>Total Amount</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for voucher in voucher_summary %}
-        <tr>
-            <td><a href="{% url 'voucher_detail' voucher.head_of_account__name %}">{{ voucher.head_of_account__name }}</a></td>
-
-            <td>{{ voucher.count }}</td>
-            <td>{{ voucher.total_amount|floatformat:2 }}</td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="3">No vouchers found.</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% endblock %}
+<!-- Add Bootstrap JS -->
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+></script>
+</body>
+</html>

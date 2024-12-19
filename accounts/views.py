@@ -932,49 +932,91 @@ def get_date_range(date_range):
         start_date = end_date = today
     return start_date, end_date
 
-
+from .models import Group, SubGroup, Ledger, Receipt, Voucher 
 @login_required
 def ledger_page_details(request):
     # Instantiate the date form
     date_form = DateRangeForm(request.GET or None)
 
-    # Initialize date range
+    # Get filters from the request
+    head_of_account = request.GET.get('head_of_account')  # Set to None if not provided
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
 
-    # Filter data based on the date range if provided
+    # Initialize querysets
     receipts_query = Receipt.objects.all()
     vouchers_query = Voucher.objects.all()
 
+    # Apply date filters if both start_date and end_date are provided
     if start_date and end_date:
         receipts_query = receipts_query.filter(receipt_date__range=[start_date, end_date])
         vouchers_query = vouchers_query.filter(voucher_date__range=[start_date, end_date])
 
-    # Calculate total amounts for receipts and vouchers
-    total_receipts_amount = receipts_query.aggregate(Sum('amount'))['amount__sum'] or 1  # Avoid division by zero
-    total_vouchers_amount = vouchers_query.aggregate(Sum('amount'))['amount__sum'] or 1
+    # Retrieve all groups
+    groups = Group.objects.prefetch_related('subgroups__ledgers')
 
-    # Summarize receipts
-    receipt_summary = receipts_query.values('type_of_receipt').annotate(
-        count=Count('id'),
-        total_amount=Sum('amount'),
-        percentage=Sum('amount') * 100 / total_receipts_amount
-    )
+    # Prepare data to send to the template
+    group_data = []
 
-    # Summarize vouchers
-    voucher_summary = vouchers_query.values('head_of_account__name').annotate(
-        count=Count('id'),
-        total_amount=Sum('amount'),
-        percentage=Sum('amount') * 100 / total_vouchers_amount
-    )
+    # Process each group
+    for group in groups:
+        subgroups = group.subgroups.all()
+        group_summary = {
+            'group_name': group.name,
+            'subgroup_data': []
+        }
 
+        # Process each subgroup
+        for subgroup in subgroups:
+            ledgers = subgroup.ledgers.all()
+            subgroup_summary = {
+                'subgroup_name': subgroup.name,
+                'ledger_data': []
+            }
+
+            # Process each ledger
+            for ledger in ledgers:
+                # Filter receipts and vouchers for the specific ledger
+                if head_of_account:
+                    receipt_balance = receipts_query.filter(
+                        head_of_account=head_of_account,
+                        ledger=ledger
+                    ).aggregate(total_balance=Sum('amount'))['total_balance'] or 0
+
+                    voucher_balance = vouchers_query.filter(
+                        head_of_account=head_of_account,
+                        ledger=ledger
+                    ).aggregate(total_balance=Sum('amount'))['total_balance'] or 0
+                else:
+                    # If no head_of_account is specified, calculate balances normally
+                    receipt_balance = receipts_query.filter(ledger=ledger).aggregate(
+                        total_balance=Sum('amount'))['total_balance'] or 0
+
+                    voucher_balance = vouchers_query.filter(ledger=ledger).aggregate(
+                        total_balance=Sum('amount'))['total_balance'] or 0
+
+                # Calculate the total balance
+                total_balance = receipt_balance + voucher_balance
+
+                # Add ledger data
+                subgroup_summary['ledger_data'].append({
+                    'ledger_name': ledger.name,
+                    'balance': total_balance
+                })
+
+            # Add subgroup summary
+            group_summary['subgroup_data'].append(subgroup_summary)
+
+        # Add group summary
+        group_data.append(group_summary)
+
+    # Render the template with context
     context = {
         'date_form': date_form,
-        'receipt_summary': receipt_summary,
-        'voucher_summary': voucher_summary,
+        'group_data': group_data,
     }
-
     return render(request, 'ledger_page_details.html', context)
+
 
 
 
